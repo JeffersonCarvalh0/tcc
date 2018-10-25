@@ -1,9 +1,103 @@
-#ifndef GENETIC1_HPP
-#define GENETIC1_HPP
+# ifndef GENETIC1_HPP
+# define GENETIC1_HPP
 
-class GA1 {
-public:
-    int pop_size, 
+# include <vector>
+# include <list>
+# include <set>
+# include <map>
+# include <random>
+
+/* Tuples will be assigned to periods */
+struct Tuple {
+    int label, teacher, subject, grade;
+
+    Tuple(int label = -1, int teacher = -1, int grade = -1, int subject = -1):
+        label(label), teacher(teacher), subject(subject), grade(grade) {}
 };
 
-#endif /* end of include guard: GENETIC1_HPP */
+/* This funciton will create the actual tuples */
+std::vector<Tuple> createTuples(int teacher, std::set<int> &chosen_subjects, std::map<int, int> &subjects, std::vector<int> &workloads) {
+    std::vector<Tuple> ans;
+    int total = 0;
+    for (auto &e : chosen_subjects) total += workloads[e];
+    ans.reserve(total);
+
+    int cur_label = 0;
+    for (auto &e : chosen_subjects) {
+        for (int i = 0; i < workloads[e]; ++i)
+            ans.push_back(Tuple(cur_label, teacher, e, subjects[e])), ++cur_label;
+    }
+
+    return ans;
+}
+
+/*
+    The first Genetic Algorithm. This will run before the main algorithm from the
+    article. Its purpose is the give a set of optimal timetables for a Teacher.
+    This must be done for every Teacher in order to have a initial set of timetables
+    for the main Genetic Algorithm.
+*/
+class GA1 {
+public:
+    int pop_size, periods_size, periods_per_day, max_gen;
+    std::vector<std::vector<Tuple>> population;
+    std::vector<Tuple> tuples;
+    std::vector<int> fitnesses, workloads;
+    std::vector<bool> out_periods, occupied_periods;
+
+    std::random_device rd;
+    std::default_random_engine generator;
+    std::uniform_int_distribution<int> random_period;
+
+    GA1(std::vector<Tuple> tuples, std::vector<int> workloads, std::vector<bool> out_periods, int pop_size = 10, int periods_size = 30, int periods_per_day = 6, int max_gen = 500):
+    tuples(tuples), workloads(workloads), out_periods(out_periods), pop_size(pop_size), periods_size(periods_size), periods_per_day(periods_per_day), max_gen(max_gen) {
+
+        // Initializing the attributes
+        generator = std::default_random_engine(rd());
+        random_period = std::uniform_int_distribution<int>(0, periods_size);
+        population = std::vector<std::vector<Tuple>>(pop_size, std::vector<Tuple>(periods_size));
+        fitnesses.resize(pop_size);
+
+        // Creating the first generation
+        for (int i = 0; i < pop_size; ++i) {
+            occupied_periods = out_periods;
+            for (int j = 0; j < int(tuples.size()); ++j) {
+                int p;
+                do p = random_period(generator); while (occupied_periods[p]);
+                population[i][p] = tuples[j];
+                occupied_periods[p] = true;
+            }
+        }
+    }
+
+    /* Calculates the finess of a chromossome(solution) */
+    int fitness(int ch) {
+        int cost = 0;
+
+        // Checking for classes in the same day for the same grade
+        for (int i = 0; i < periods_size / periods_per_day; ++i) {
+            std::map<int, int> m;
+            for (int j = i * periods_per_day; j < (i + 1) * periods_per_day; ++j) {
+                if (m.find(population[ch][j].subject) == m.end())
+                    m.insert({ population[ch][j].subject, 0 });
+                else
+                    ++m[population[ch][j].subject];
+            }
+            for (auto &e : m) if (e.second > 1) cost += 10;
+        }
+
+        // Checking for windows in the timetable
+        for (int i = 0; i < periods_size / periods_per_day; ++i) {
+            for (int j = i * periods_per_day; j < (i + 1) * periods_per_day; ++j) {
+                if (j > i * periods_per_day && j < i + 1 &&
+                    population[ch][j - 1].label != -1 &&
+                    population[ch][j + 1].label != -1 &&
+                    population[ch][j].label == -1) cost += 10;
+            }
+        }
+
+        return 100 - cost;
+    }
+};
+
+# endif /* end of include guard: GENETIC1_HPP */

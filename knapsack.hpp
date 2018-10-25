@@ -1,5 +1,5 @@
-#ifndef KNAPSACK_HPP
-#define KNAPSACK_HPP
+# ifndef KNAPSACK_HPP
+# define KNAPSACK_HPP
 
 # include <iostream>
 # include <vector>
@@ -19,7 +19,7 @@ std::set<int> knapsack(int subjects, int wl, std::vector<int> &workloads, std::v
     int i = subjects, j = wl;
     while (j > 0 && i > 0) {
         if (dp[i][j] != dp[i - 1][j]) {
-            ans.insert(i);
+            ans.insert(i - 1);
             j -= workloads[i - 1]; --i;
         } else --i;
     }
@@ -27,4 +27,4 @@ std::set<int> knapsack(int subjects, int wl, std::vector<int> &workloads, std::v
     return ans;
 }
 
-#endif /* end of include guard: KNAPSACK_HPP */
+# endif /* end of include guard: KNAPSACK_HPP */

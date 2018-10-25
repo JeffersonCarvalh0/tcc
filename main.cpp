@@ -1,4 +1,7 @@
 # include "knapsack.hpp"
+# include "genetic1.hpp"
+
+# include <map>
 
 using namespace std;
 
@@ -10,14 +13,13 @@ int main() {
 
     cin >> wl >> subjects;
     workloads.resize(subjects); prefs.resize(subjects);
-    vector<vector<int>> dp(subjects + 1, vector<int>(wl + 1));
 
     for (int i = 0; i < subjects; ++i) cin >> workloads[i];
     for (int i = 0; i < subjects; ++i) cin >> prefs[i];
 
     ans = knapsack(subjects, wl, workloads, prefs);
 
-    for (auto &e : ans) cout << e - 1 << ' ';
+    for (auto &e : ans) cout << e << ' ';
     cout << '\n';
 
     return 0;
