@@ -68,6 +68,9 @@ public:
                 occupied_periods[p] = true;
             }
         }
+
+        // Calculates the fitness from each chromossome
+        for (int i = 0; i < pop_size; ++i) fitnesses[i] = fitness(i);
     }
 
     /* Calculates the finess of a chromossome(solution) */
@@ -99,7 +102,10 @@ public:
         return 100 - cost;
     }
 
-    /* Probabilistically selects the parents based on their fitnesses */
+    /*
+        Probabilistically selects the parents based on their fitnesses
+        Roulette Wheel method
+    */
     void select(int &parent1, int &parent2) {
         int total = 0;
         for (int i = 0; i < pop_size; ++i) total += fitnesses[i];
@@ -160,6 +166,33 @@ public:
         fix(child1); fix(child2);
     }
 
+    /* Creates a new population */
+    void breed() {
+        std::vector<std::vector<Tuple>> new_population(pop_size, std::vector<Tuple>(periods_size));
+        int survivors_qtd = pop_size - int(pop_size * 0.85);
+
+        // Select the survivors using elitism
+        std::multimap<int, int> best;
+        for (int i = 0; i < pop_size; ++i) best.insert({ fitnesses[i], i });
+
+        int i = 0;
+        for (auto it = best.begin(); it != best.end() && i < survivors_qtd; ++it, ++i)
+            new_population[i] = population[it->second];
+
+        // Probabilistically chooses the parents
+        int parent1, parent2;
+        select(parent1, parent2);
+
+        // Generate the rest of the new population through crossover
+        std::vector<Tuple> child1, child2;
+        for (int i = survivors_qtd; i < pop_size; ++i) {
+            crossover(parent1, parent2, child1, child2);
+            new_population[i] = child1;
+            if (i + 1 < pop_size) new_population[i += 1] = child2;
+        }
+
+        population = new_population;
+    }
 };
 
 # endif /* end of include guard: GENETIC1_HPP */
