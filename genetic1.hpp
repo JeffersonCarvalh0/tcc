@@ -81,10 +81,10 @@ public:
         for (int i = 0; i < periods_size / periods_per_day; ++i) {
             std::map<int, int> m;
             for (int j = i * periods_per_day; j < (i + 1) * periods_per_day; ++j) {
-                if (m.find(population[ch][j].subject) == m.end())
-                    m.insert({ population[ch][j].subject, 0 });
+                if (m.find(population[ch][j].grade) == m.end())
+                    m.insert({ population[ch][j].grade, 0 });
                 else
-                    ++m[population[ch][j].subject];
+                    ++m[population[ch][j].grade];
             }
             for (auto &e : m) if (e.second > 1) cost += 10;
         }
