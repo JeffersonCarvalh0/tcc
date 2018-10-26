@@ -99,6 +99,12 @@ public:
             }
         }
 
+        // Check if the period is available for the Teacher
+        for (int i = 0; i < periods_size; ++i) {
+            if (occupied_periods[i] && population[ch][i].label != -1)
+                cost += 40;
+        }
+
         return 100 - cost;
     }
 
@@ -192,6 +198,22 @@ public:
         }
 
         population = new_population;
+
+        // Calculates the fitnesses of the new generation
+        for (int i = 0; i < pop_size; ++i) fitnesses[i] = fitness(i);
+    }
+
+    void start() {
+        while (max_gen--) {
+            breed();
+            std::cout << "generation " << max_gen << '\n';
+            for (int i = 0; i < pop_size; ++i) {
+                std::cout << "solution " << i << '\n';
+                for (int j = 0; j < periods_size; ++j)
+                    std::cout << population[i][j].label << ' ' << fitnesses[i] << '\n';
+                std::cout << "\n\n";
+            }
+        }
     }
 };
 
