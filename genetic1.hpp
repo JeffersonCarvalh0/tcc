@@ -98,6 +98,68 @@ public:
 
         return 100 - cost;
     }
+
+    /* Probabilistically selects the parents based on their fitnesses */
+    void select(int &parent1, int &parent2) {
+        int total = 0;
+        for (int i = 0; i < pop_size; ++i) total += fitnesses[i];
+
+        std::uniform_int_distribution<int> v(0, total);
+        int chosen = v(generator);
+
+        for (int i = 0; chosen > 0; ++i) {
+            chosen -= fitnesses[i];
+            if (chosen <= 0) { parent1 = i; break; }
+        }
+
+        chosen = v(generator);
+        for (int i = 0; chosen > 0; ++i) {
+            chosen -= fitnesses[i];
+            if (chosen <= 0) { parent2 = i; break; }
+        }
+    }
+
+    /* Checks for hard constraints violated and fix them */
+    void fix(std::vector<Tuple> &child) {
+        // Checking for missing and repeated tuples
+        std::vector<int> count(tuples.size());
+        std::map<int, int> repeated;
+        std::set<int> missing;
+
+        for (int i = 0; i < int(child.size()); ++i) {
+            if (child[i].label != -1) {
+                ++count[child[i].label];
+                if (count[child[i].label] > 1) repeated.insert({ i, child[i].label });
+            }
+        }
+
+        for (int i = 0; i < int(count.size()); ++i)
+            if (count[i] == 0) missing.insert(i);
+
+        for (auto &e : repeated) {
+            int cur_missing = *missing.begin();
+            child[e.first] = tuples[cur_missing];
+            --count[e.second]; missing.erase(cur_missing);
+        }
+    }
+
+    /* Creates two childs from a pair of parents */
+    void crossover(int parent1, int parent2, std::vector<Tuple> &child1, std::vector<Tuple> &child2) {
+        int pivot = random_period(generator);
+
+        for (int i = 0; i < pivot; ++i) {
+            child1[i] = population[parent1][i];
+            child2[i] = population[parent2][i];
+        }
+
+        for (int i = pivot; i < periods_size; ++i) {
+            child1[i] = population[parent2][i];
+            child2[i] = population[parent1][i];
+        }
+
+        fix(child1); fix(child2);
+    }
+
 };
 
 # endif /* end of include guard: GENETIC1_HPP */
