@@ -6,12 +6,13 @@
 # include <set>
 # include <map>
 # include <random>
+# include <iostream>
 
 /* Tuples will be assigned to periods */
 struct Tuple {
     int label, teacher, subject, grade;
 
-    Tuple(int label = -1, int teacher = -1, int grade = -1, int subject = -1):
+    Tuple(int label = -1, int teacher = -1, int subject = -1, int grade = -1):
         label(label), teacher(teacher), subject(subject), grade(grade) {}
 };
 
@@ -41,20 +42,20 @@ class GA1 {
 public:
     int pop_size, periods_size, periods_per_day, max_gen;
     std::vector<std::vector<Tuple>> population;
-    std::vector<Tuple> tuples;
-    std::vector<int> fitnesses, workloads;
-    std::vector<bool> out_periods, occupied_periods;
+    std::vector<Tuple> &tuples;
+    std::vector<int> fitnesses, &workloads;
+    std::vector<bool> &out_periods, occupied_periods;
 
     std::random_device rd;
     std::default_random_engine generator;
     std::uniform_int_distribution<int> random_period;
 
-    GA1(std::vector<Tuple> tuples, std::vector<int> workloads, std::vector<bool> out_periods, int pop_size = 10, int periods_size = 30, int periods_per_day = 6, int max_gen = 500):
+    GA1(std::vector<Tuple> &tuples, std::vector<int> &workloads, std::vector<bool> &out_periods, int pop_size = 100, int periods_size = 30, int periods_per_day = 6, int max_gen = 100):
     tuples(tuples), workloads(workloads), out_periods(out_periods), pop_size(pop_size), periods_size(periods_size), periods_per_day(periods_per_day), max_gen(max_gen) {
 
         // Initializing the attributes
         generator = std::default_random_engine(rd());
-        random_period = std::uniform_int_distribution<int>(0, periods_size);
+        random_period = std::uniform_int_distribution<int>(0, periods_size - 1);
         population = std::vector<std::vector<Tuple>>(pop_size, std::vector<Tuple>(periods_size));
         fitnesses.resize(pop_size);
 
@@ -105,7 +106,7 @@ public:
                 cost += 40;
         }
 
-        return 100 - cost;
+        return 600 - (cost > 600 ? 600 : cost);
     }
 
     /*
@@ -116,7 +117,7 @@ public:
         int total = 0;
         for (int i = 0; i < pop_size; ++i) total += fitnesses[i];
 
-        std::uniform_int_distribution<int> v(0, total);
+        std::uniform_int_distribution<int> v(1, total);
         int chosen = v(generator);
 
         for (int i = 0; chosen > 0; ++i) {
@@ -182,7 +183,7 @@ public:
         for (int i = 0; i < pop_size; ++i) best.insert({ fitnesses[i], i });
 
         int i = 0;
-        for (auto it = best.begin(); it != best.end() && i < survivors_qtd; ++it, ++i)
+        for (auto it = best.rbegin(); it != best.rend() && i < survivors_qtd; ++it, ++i)
             new_population[i] = population[it->second];
 
         // Probabilistically chooses the parents
@@ -190,7 +191,7 @@ public:
         select(parent1, parent2);
 
         // Generate the rest of the new population through crossover
-        std::vector<Tuple> child1, child2;
+        std::vector<Tuple> child1(periods_size), child2(periods_size);
         for (int i = survivors_qtd; i < pop_size; ++i) {
             crossover(parent1, parent2, child1, child2);
             new_population[i] = child1;
@@ -207,12 +208,14 @@ public:
         while (max_gen--) {
             breed();
             std::cout << "generation " << max_gen << '\n';
+            std::cout << "total fitness: ";
+
+            int total = 0;
             for (int i = 0; i < pop_size; ++i) {
-                std::cout << "solution " << i << '\n';
-                for (int j = 0; j < periods_size; ++j)
-                    std::cout << population[i][j].label << ' ' << fitnesses[i] << '\n';
-                std::cout << "\n\n";
+                std::cout << fitnesses[i] << ' ';
+                total += fitnesses[i];
             }
+            std::cout << " total: " << total << "\n\n";
         }
     }
 };
