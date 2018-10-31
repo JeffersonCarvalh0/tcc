@@ -1,7 +1,6 @@
 # ifndef KNAPSACK_HPP
 # define KNAPSACK_HPP
 
-# include <iostream>
 # include <vector>
 # include <set>
 

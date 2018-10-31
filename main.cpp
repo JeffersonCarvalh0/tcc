@@ -1,13 +1,34 @@
 # include "knapsack.hpp"
 # include "genetic1.hpp"
 
+# include <iostream>
+# include <iomanip>
 # include <map>
 
 using namespace std;
 
 ostream& operator << (ostream &stream, Tuple &tuple) {
-    stream << tuple.label << ' ' << tuple.teacher << ' ' << tuple.subject << ' ' << tuple.grade;
+    stream << setw(2) << tuple.label << setw(5) << tuple.teacher << setw(8) << tuple.subject << setw(8) << tuple.grade;
     return stream;
+}
+
+void printChromossomes(GA1 &ga1) {
+    cout << "Tuples:\n";
+    cout << "label" << ' ' << "teacher" << ' ' << "subject" << ' ' << "grade" << '\n';
+    for (auto &tuple : ga1.tuples) cout << tuple << '\n';
+
+    cout << '\n';
+
+    for (int i = 1; i <= 5; ++i) {
+        cout << "solution " << i << "(fitness " << ga1.fitnesses[i - 1] << "):\n";
+        for (int j = 1; j <= 6; ++j) {
+            cout << "period " << j << ": ";
+            for (int k = j - 1; k < 30; k += 6)
+                cout << setw(3) << ga1.population[i - 1][k].label << ' ';
+            cout << '\n';
+        }
+        cout << "\n";
+    }
 }
 
 int main() {
@@ -40,21 +61,15 @@ int main() {
     // Executing the first GA
     // Getting all possible tuples
     vector<Tuple> tuples = createTuples(0, chosen_subs, subjects, workloads);
-    cout << "Tuples:\n";
-    for (auto &tuple : tuples) cout << tuple << '\n';
-    cout << '\n';
 
     // Initializing the algorithm
     GA1 ga1(tuples, workloads, out_periods);
-    for (int i = 0; i < ga1.pop_size; ++i) {
-        cout << "Chromossome " << i << ":\n";
-        for (int j = 0; j < ga1.periods_size; ++j)
-            cout << "period " << j << ": " << ga1.population[i][j] << '\n';
-        cout << '\n';
-    }
 
     // Refining the initial population
     ga1.start();
+
+    // Outputs the results
+    printChromossomes(ga1);
 
     return 0;
 }

@@ -44,7 +44,7 @@ public:
     std::vector<std::vector<Tuple>> population;
     std::vector<Tuple> &tuples;
     std::vector<int> fitnesses, &workloads;
-    std::vector<bool> &out_periods, occupied_periods;
+    std::vector<bool> &out_periods;
 
     std::random_device rd;
     std::default_random_engine generator;
@@ -61,12 +61,10 @@ public:
 
         // Creating the first generation
         for (int i = 0; i < pop_size; ++i) {
-            occupied_periods = out_periods;
             for (int j = 0; j < int(tuples.size()); ++j) {
                 int p;
-                do p = random_period(generator); while (occupied_periods[p]);
+                do p = random_period(generator); while (out_periods[p] || population[i][p].label != -1);
                 population[i][p] = tuples[j];
-                occupied_periods[p] = true;
             }
         }
 
@@ -78,16 +76,18 @@ public:
     int fitness(int ch) {
         int cost = 0;
 
-        // Checking for classes in the same day for the same grade
+        // Checking for lectures of the same subject in the same day
         for (int i = 0; i < periods_size / periods_per_day; ++i) {
             std::map<int, int> m;
             for (int j = i * periods_per_day; j < (i + 1) * periods_per_day; ++j) {
-                if (m.find(population[ch][j].grade) == m.end())
-                    m.insert({ population[ch][j].grade, 0 });
-                else
-                    ++m[population[ch][j].grade];
+                if (population[ch][j].label != -1) {
+                    if (m.find(population[ch][j].subject) == m.end())
+                        m.insert({ population[ch][j].subject, 1 });
+                    else
+                        ++m[population[ch][j].subject];
+                }
             }
-            for (auto &e : m) if (e.second > 1) cost += 10;
+            for (auto &e : m) if (e.second > 1) cost += (10 * (e.second - 1));
         }
 
         // Checking for windows in the timetable
@@ -100,13 +100,7 @@ public:
             }
         }
 
-        // Check if the period is available for the Teacher
-        for (int i = 0; i < periods_size; ++i) {
-            if (occupied_periods[i] && population[ch][i].label != -1)
-                cost += 40;
-        }
-
-        return 600 - (cost > 600 ? 600 : cost);
+        return 500 - (cost > 500 ? 500 : cost);
     }
 
     /*
@@ -134,40 +128,61 @@ public:
 
     /* Checks for hard constraints violated and fix them */
     void fix(std::vector<Tuple> &child) {
-        // Checking for missing and repeated tuples
-        std::vector<int> count(tuples.size());
-        std::map<int, int> repeated;
-        std::set<int> missing;
+        std::vector<bool> found(tuples.size(), false);
 
-        for (int i = 0; i < int(child.size()); ++i) {
-            if (child[i].label != -1) {
-                ++count[child[i].label];
-                if (count[child[i].label] > 1) repeated.insert({ i, child[i].label });
+        // Checks for missing tuples and place them randomly
+        for (auto &e : child) if (e.label != -1) found[e.label] = true;
+        for (int i = 0; i < int(found.size()); ++i) {
+            if (!found[i]) {
+                int chosen;
+                do chosen = random_period(generator); while (out_periods[chosen] || child[chosen].label != -1);
+                child[chosen] = tuples[i];
+                // std::cout << "missing tuple replaced\n";
             }
         }
 
-        for (int i = 0; i < int(count.size()); ++i)
-            if (count[i] == 0) missing.insert(i);
+        // Checks for repeated tuples and remove them
+        found = std::vector<bool>(tuples.size(), false);
+        for (auto &e : child) {
+            if (e.label != -1 && found[e.label]) e.label = -1;
+            else if (e.label != -1) found[e.label] = true;
+        }
 
-        for (auto &e : repeated) {
-            int cur_missing = *missing.begin();
-            child[e.first] = tuples[cur_missing];
-            --count[e.second]; missing.erase(cur_missing);
+        // Mutation: randomly selects two tuples from two periods and switch them
+        std::uniform_int_distribution<int> m(1, 100);
+        if (m(generator) <= 50) {
+            // std::cout << "Mutation!" << '\n';
+            int t1, t2;
+            do t1 = random_period(generator); while (child[t1].label == -1);
+            do t2 = random_period(generator); while (child[t2].label == -1);
+
+            Tuple aux = child[t1];
+            child[t1] = child[t2];
+            child[t2] = aux;
+        }
+
+        // Change the period of tuples in unavailable positions
+        for (int i = 0; i < periods_size; ++i) {
+            if (child[i].label != -1 && out_periods[i]) {
+                int chosen;
+                do chosen = random_period(generator); while (out_periods[chosen] || child[chosen].label != -1);
+                child[chosen] = child[i]; child[i].label = -1;
+            }
         }
     }
 
-    /* Creates two childs from a pair of parents */
+    /* Creates two children from a pair of parents using uniform technique */
     void crossover(int parent1, int parent2, std::vector<Tuple> &child1, std::vector<Tuple> &child2) {
-        int pivot = random_period(generator);
+        std::uniform_int_distribution<int> coin(1, 100);
 
-        for (int i = 0; i < pivot; ++i) {
-            child1[i] = population[parent1][i];
-            child2[i] = population[parent2][i];
-        }
-
-        for (int i = pivot; i < periods_size; ++i) {
-            child1[i] = population[parent2][i];
-            child2[i] = population[parent1][i];
+        for (int i = 0; i < periods_size; ++i) {
+            if (coin(generator) <= 50) {
+                child1[i] = population[parent1][i];
+                child2[i] = population[parent2][i];
+            } else {
+                child1[i] = population[parent2][i];
+                child2[i] = population[parent1][i];
+            }
         }
 
         fix(child1); fix(child2);
@@ -176,7 +191,7 @@ public:
     /* Creates a new population */
     void breed() {
         std::vector<std::vector<Tuple>> new_population(pop_size, std::vector<Tuple>(periods_size));
-        int survivors_qtd = pop_size - int(pop_size * 0.85);
+        int survivors_qtd = pop_size - int(pop_size * 0.95);
 
         // Select the survivors using elitism
         std::multimap<int, int> best;
@@ -207,15 +222,15 @@ public:
     void start() {
         while (max_gen--) {
             breed();
-            std::cout << "generation " << max_gen << '\n';
-            std::cout << "total fitness: ";
-
-            int total = 0;
-            for (int i = 0; i < pop_size; ++i) {
-                std::cout << fitnesses[i] << ' ';
-                total += fitnesses[i];
-            }
-            std::cout << " total: " << total << "\n\n";
+            // std::cout << "generation " << max_gen << '\n';
+            // std::cout << "total fitness: ";
+            //
+            // int total = 0;
+            // for (int i = 0; i < pop_size; ++i) {
+            //     std::cout << fitnesses[i] << ' ';
+            //     total += fitnesses[i];
+            // }
+            // std::cout << " total: " << total << "\n\n";
         }
     }
 };
