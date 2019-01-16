@@ -12,7 +12,7 @@ ostream& operator << (ostream &stream, Tuple &tuple) {
     return stream;
 }
 
-void printChromossomes(GA1 &ga1) {
+void printChromossomesTerminal(GA1 &ga1) {
     cout << "Tuples:\n";
     cout << "label" << ' ' << "teacher" << ' ' << "subject" << ' ' << "grade" << '\n';
     for (auto &tuple : ga1.tuples) cout << tuple << '\n';
@@ -31,6 +31,14 @@ void printChromossomes(GA1 &ga1) {
     }
 }
 
+void printChromossomes(GA1 &ga1) {
+    for (int i = 0; i < 5; ++i) {
+        for (int j = 0; j < ga1.periods_size; ++j)
+            cout << ga1.population[i][j].label << ' ';
+        cout << "(fitness " << ga1.fitnesses[i] << ")\n";
+    }
+}
+
 int main() {
     ios_base::sync_with_stdio(0); cin.tie(0); cout.tie(0);
     int wl, n, out_periods_num;
@@ -43,7 +51,7 @@ int main() {
     workloads.resize(n); prefs.resize(n); grades.resize(n);
     out_periods.resize(30);
 
-    // Reading the inputs
+    // Reading the input
     for (int i = 0; i < n; ++i) cin >> workloads[i];
     for (int i = 0; i < n; ++i) cin >> prefs[i];
     for (int i = 0; i < n; ++i) cin >> grades[i];

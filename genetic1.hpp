@@ -93,7 +93,7 @@ public:
         // Checking for windows in the timetable
         for (int i = 0; i < periods_size / periods_per_day; ++i) {
             for (int j = i * periods_per_day; j < (i + 1) * periods_per_day; ++j) {
-                if (j > i * periods_per_day && j < i + 1 &&
+                if (j > i * periods_per_day && j < (i + 1) * periods_per_day &&
                     population[ch][j - 1].label != -1 &&
                     population[ch][j + 1].label != -1 &&
                     population[ch][j].label == -1) cost += 10;
