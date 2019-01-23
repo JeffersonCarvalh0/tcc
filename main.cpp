@@ -1,40 +1,23 @@
 # include "knapsack.hpp"
 # include "genetic1.hpp"
 
+# include "utils.hpp"
+
 # include <iostream>
 # include <iomanip>
 # include <map>
 
 using namespace std;
 
-ostream& operator << (ostream &stream, Tuple &tuple) {
-    stream << setw(2) << tuple.label << setw(5) << tuple.teacher << setw(8) << tuple.subject << setw(8) << tuple.grade;
-    return stream;
-}
-
-void printChromossomesTerminal(GA1 &ga1) {
-    cout << "Tuples:\n";
-    cout << "label" << ' ' << "teacher" << ' ' << "subject" << ' ' << "grade" << '\n';
-    for (auto &tuple : ga1.tuples) cout << tuple << '\n';
-
-    cout << '\n';
-
-    for (int i = 1; i <= 5; ++i) {
-        cout << "solution " << i << "(fitness " << ga1.fitnesses[i - 1] << "):\n";
-        for (int j = 1; j <= 6; ++j) {
-            cout << "period " << j << ": ";
-            for (int k = j - 1; k < 30; k += 6)
-                cout << setw(3) << ga1.population[i - 1][k].label << ' ';
-            cout << '\n';
-        }
-        cout << "\n";
-    }
-}
+// ostream& operator << (ostream &stream, Tuple &tuple) {
+//     stream << setw(2) << tuple.label << setw(5) << tuple.teacher << setw(8) << tuple.subject << setw(8) << tuple.grade;
+//     return stream;
+// }
 
 void printChromossomes(GA1 &ga1) {
     for (int i = 0; i < 5; ++i) {
         for (int j = 0; j < ga1.periods_size; ++j)
-            cout << ga1.population[i][j].label << ' ';
+            cout << ga1.population[i][j] << ' ';
         cout << "(fitness " << ga1.fitnesses[i] << ")\n";
     }
 }

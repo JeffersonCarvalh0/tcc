@@ -1,36 +1,14 @@
 # ifndef GENETIC1_HPP
 # define GENETIC1_HPP
 
-# include <vector>
+# include "utils.hpp"
+
+# include <iostream>
 # include <list>
-# include <set>
 # include <map>
 # include <random>
-# include <iostream>
-
-/* Tuples will be assigned to periods */
-struct Tuple {
-    int label, teacher, subject, grade;
-
-    Tuple(int label = -1, int teacher = -1, int subject = -1, int grade = -1):
-        label(label), teacher(teacher), subject(subject), grade(grade) {}
-};
-
-/* This funciton will create the actual tuples */
-std::vector<Tuple> createTuples(int teacher, std::set<int> &chosen_subjects, std::map<int, int> &subjects, std::vector<int> &workloads) {
-    std::vector<Tuple> ans;
-    int total = 0;
-    for (auto &e : chosen_subjects) total += workloads[e];
-    ans.reserve(total);
-
-    int cur_label = 0;
-    for (auto &e : chosen_subjects) {
-        for (int i = 0; i < workloads[e]; ++i)
-            ans.push_back(Tuple(cur_label, teacher, e, subjects[e])), ++cur_label;
-    }
-
-    return ans;
-}
+# include <utility>
+# include <vector>
 
 /*
     The first Genetic Algorithm. This will run before the main algorithm from the
@@ -41,7 +19,7 @@ std::vector<Tuple> createTuples(int teacher, std::set<int> &chosen_subjects, std
 class GA1 {
 public:
     int pop_size, periods_size, periods_per_day, max_gen;
-    std::vector<std::vector<Tuple>> population;
+    std::vector<std::vector<int>> population;
     std::vector<Tuple> &tuples;
     std::vector<int> fitnesses, &workloads;
     std::vector<bool> &out_periods;
@@ -56,19 +34,19 @@ public:
         // Initializing the attributes
         generator = std::default_random_engine(rd());
         random_period = std::uniform_int_distribution<int>(0, periods_size - 1);
-        population = std::vector<std::vector<Tuple>>(pop_size, std::vector<Tuple>(periods_size));
+        population = std::vector<std::vector<int>>(pop_size, std::vector<int>(periods_size, -1));
         fitnesses.resize(pop_size);
 
         // Creating the first generation
         for (int i = 0; i < pop_size; ++i) {
             for (int j = 0; j < int(tuples.size()); ++j) {
                 int p;
-                do p = random_period(generator); while (out_periods[p] || population[i][p].label != -1);
-                population[i][p] = tuples[j];
+                do p = random_period(generator); while (out_periods[p] || population[i][p] != -1);
+                population[i][p] = tuples[j].label;
             }
         }
 
-        // Calculates the fitness from each chromossome
+        // Calculates the fitness of each chromossome
         for (int i = 0; i < pop_size; ++i) fitnesses[i] = fitness(i);
     }
 
@@ -80,11 +58,11 @@ public:
         for (int i = 0; i < periods_size / periods_per_day; ++i) {
             std::map<int, int> m;
             for (int j = i * periods_per_day; j < (i + 1) * periods_per_day; ++j) {
-                if (population[ch][j].label != -1) {
-                    if (m.find(population[ch][j].subject) == m.end())
-                        m.insert({ population[ch][j].subject, 1 });
+                if (population[ch][j] != -1) {
+                    if (m.find(tuples[population[ch][j]].subject) == m.end())
+                        m.insert({ tuples[population[ch][j]].subject, 1 });
                     else
-                        ++m[population[ch][j].subject];
+                        ++m[tuples[population[ch][j]].subject];
                 }
             }
             for (auto &e : m) if (e.second > 1) cost += (10 * (e.second - 1));
@@ -94,9 +72,9 @@ public:
         for (int i = 0; i < periods_size / periods_per_day; ++i) {
             for (int j = i * periods_per_day; j < (i + 1) * periods_per_day; ++j) {
                 if (j > i * periods_per_day && j < (i + 1) * periods_per_day &&
-                    population[ch][j - 1].label != -1 &&
-                    population[ch][j + 1].label != -1 &&
-                    population[ch][j].label == -1) cost += 10;
+                    population[ch][j - 1] != -1 &&
+                    population[ch][j + 1] != -1 &&
+                    population[ch][j] == -1) cost += 10;
             }
         }
 
@@ -127,16 +105,16 @@ public:
     }
 
     /* Checks for hard constraints violated and fix them */
-    void fix(std::vector<Tuple> &child) {
+    void fix(std::vector<int> &child) {
         std::vector<bool> found(tuples.size(), false);
 
         // Checks for missing tuples and place them randomly
-        for (auto &e : child) if (e.label != -1) found[e.label] = true;
+        for (auto &e : child) if (e != -1) found[e] = true;
         for (int i = 0; i < int(found.size()); ++i) {
             if (!found[i]) {
                 int chosen;
-                do chosen = random_period(generator); while (out_periods[chosen] || child[chosen].label != -1);
-                child[chosen] = tuples[i];
+                do chosen = random_period(generator); while (out_periods[chosen] || child[chosen] != -1);
+                child[chosen] = tuples[i].label;
                 // std::cout << "missing tuple replaced\n";
             }
         }
@@ -144,8 +122,8 @@ public:
         // Checks for repeated tuples and remove them
         found = std::vector<bool>(tuples.size(), false);
         for (auto &e : child) {
-            if (e.label != -1 && found[e.label]) e.label = -1;
-            else if (e.label != -1) found[e.label] = true;
+            if (e != -1 && found[e]) e = -1;
+            else if (e != -1) found[e] = true;
         }
 
         // Mutation: randomly selects two tuples from two periods and switch them
@@ -153,26 +131,24 @@ public:
         if (m(generator) <= 50) {
             // std::cout << "Mutation!" << '\n';
             int t1, t2;
-            do t1 = random_period(generator); while (child[t1].label == -1);
-            do t2 = random_period(generator); while (child[t2].label == -1);
+            do t1 = random_period(generator); while (child[t1] == -1);
+            do t2 = random_period(generator); while (child[t2] == -1);
 
-            Tuple aux = child[t1];
-            child[t1] = child[t2];
-            child[t2] = aux;
+            std::swap(child[t1], child[t2]);
         }
 
         // Change the period of tuples in unavailable positions
         for (int i = 0; i < periods_size; ++i) {
-            if (child[i].label != -1 && out_periods[i]) {
+            if (child[i] != -1 && out_periods[i]) {
                 int chosen;
-                do chosen = random_period(generator); while (out_periods[chosen] || child[chosen].label != -1);
-                child[chosen] = child[i]; child[i].label = -1;
+                do chosen = random_period(generator); while (out_periods[chosen] || child[chosen] != -1);
+                child[chosen] = child[i]; child[i] = -1;
             }
         }
     }
 
     /* Creates two children from a pair of parents using uniform technique */
-    void crossover(int parent1, int parent2, std::vector<Tuple> &child1, std::vector<Tuple> &child2) {
+    void crossover(int parent1, int parent2, std::vector<int> &child1, std::vector<int> &child2) {
         std::uniform_int_distribution<int> coin(1, 100);
 
         for (int i = 0; i < periods_size; ++i) {
@@ -190,7 +166,7 @@ public:
 
     /* Creates a new population */
     void breed() {
-        std::vector<std::vector<Tuple>> new_population(pop_size, std::vector<Tuple>(periods_size));
+        std::vector<std::vector<int>> new_population(pop_size, std::vector<int>(periods_size));
         int survivors_qtd = pop_size - int(pop_size * 0.95);
 
         // Select the survivors using elitism
@@ -206,7 +182,7 @@ public:
         select(parent1, parent2);
 
         // Generate the rest of the new population through crossover
-        std::vector<Tuple> child1(periods_size), child2(periods_size);
+        std::vector<int> child1(periods_size), child2(periods_size);
         for (int i = survivors_qtd; i < pop_size; ++i) {
             crossover(parent1, parent2, child1, child2);
             new_population[i] = child1;
