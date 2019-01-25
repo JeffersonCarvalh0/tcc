@@ -126,17 +126,6 @@ public:
             else if (e != -1) found[e] = true;
         }
 
-        // Mutation: randomly selects two tuples from two periods and switch them
-        std::uniform_int_distribution<int> m(1, 100);
-        if (m(generator) <= 50) {
-            // std::cout << "Mutation!" << '\n';
-            int t1, t2;
-            do t1 = random_period(generator); while (child[t1] == -1);
-            do t2 = random_period(generator); while (child[t2] == -1);
-
-            std::swap(child[t1], child[t2]);
-        }
-
         // Change the period of tuples in unavailable positions
         for (int i = 0; i < periods_size; ++i) {
             if (child[i] != -1 && out_periods[i]) {
@@ -161,7 +150,20 @@ public:
             }
         }
 
+        mutation(child1); mutation(child2);
         fix(child1); fix(child2);
+    }
+
+    /* Randomly selects two tuples from two periods and switch them */
+    void mutation(std::vector<int> &child) {
+        std::uniform_int_distribution<int> m(1, 100);
+        if (m(generator) <= 5) {
+            int t1, t2;
+            do t1 = random_period(generator); while (child[t1] == -1);
+            do t2 = random_period(generator); while (child[t2] == -1);
+
+            std::swap(child[t1], child[t2]);
+        }
     }
 
     /* Creates a new population */
