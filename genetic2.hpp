@@ -19,59 +19,98 @@ using int_vector = std::vector<int>;
     random or it can be the outputs of the first GA executed for each teacher.
 */
 class GA2 {
+private:
+    struct Chromossome {
+        std::vector<std::list<Tuple>> periods;
+        std::vector<std::vector<bool>> teacher_subject;
+        std::vector<int> tc_cur_workloads;
+
+        Chromossome(int periods_size, int teachers_size, int subjects_size) {
+            periods.resize(periods_size);
+            teacher_subject.resize(teachers_size, std::vector<bool>(subjects_size, false));
+            tc_cur_workloads.resize(subjects_size);
+        }
+    };
+
+private:
+    void setTuples(Chromossome &ch, int teacher, int subject) {
+        for (auto &period : ch.periods) {
+            for (auto &tuple : period) {
+                if (tuple.subject == subject) tuple.teacher = teacher;
+            }
+        }
+    }
+
+    void swap_teachers(Chromossome &ch, int sbj1, int sbj2) {
+        int teacher1, teacher2;
+        for (teacher1 = 0; teacher1 < (int)tc_workloads.size(); ++teacher1)
+            if (ch.teacher_subject[teacher1][sbj1]) break;
+
+        for (teacher2 = 0; teacher2 < (int)tc_workloads.size(); ++teacher2)
+            if (ch.teacher_subject[teacher2][sbj2]) break;
+
+        ch.teacher_subject[teacher1][sbj1] = false;
+        ch.teacher_subject[teacher1][sbj2] = true;
+        ch.teacher_subject[teacher2][sbj2] = false;
+        ch.teacher_subject[teacher2][sbj1] = true;
+
+        ch.tc_cur_workloads[teacher1] -= sbj_workloads[sbj1];
+        ch.tc_cur_workloads[teacher1] += sbj_workloads[sbj2];
+        ch.tc_cur_workloads[teacher2] -= sbj_workloads[sbj2];
+        ch.tc_cur_workloads[teacher2] += sbj_workloads[sbj1];
+
+        setTuples(ch, teacher1, sbj1);
+        setTuples(ch, teacher2, sbj2);
+    }
+
 public:
     int pop_size, periods_size, periods_per_day;
-    std::vector<std::vector<std::list<int>>> population;
-    std::vector<Tuple> &tuples;
+    std::vector<Chromossome> population;
+    std::vector<int> &sbj_grades;
     int_matrix &out_periods, &prefs;
-    std::vector<std::list<int>> teacher_subject;
-    int_vector fitnesses, &tc_max_workloads, &sbj_workloads, &first_labels, tc_cur_workloads;
-    std::vector<bool> allocated_subjects;
+    int_vector fitnesses, &tc_max_workloads, &sbj_workloads, &first_labels;
 
     std::random_device rd;
     std::default_random_engine generator;
     std::uniform_int_distribution<int> random_period;
     std::uniform_int_distribution<int> random_teacher;
-
-private:
-    void setTuples(int teacher, int subject) {
-        for (int i = first_labels[subject]; i < first_labels[subject] + sbj_workloads[subject]; ++i)
-            tuples[i].teacher = teacher;
-    }
+    std::uniform_int_distribution<int> random_subject;
 
 public:
     // Constructor with random initial population
-    GA2(std::vector<Tuple> &tuples, int_matrix &out_periods, int_matrix &prefs, int_vector &tc_max_workloads, int_vector &sbj_workloads, int_vector first_labels, int pop_size, int periods_size = 30, int periods_per_day = 6):
+    GA2(std::vector<int> &sbj_grades, int_matrix &out_periods, int_matrix &prefs, int_vector &tc_max_workloads, int_vector &sbj_workloads, int_vector first_labels, int pop_size, int periods_size = 30, int periods_per_day = 6):
     tuples(tuples), out_periods(out_periods), prefs(prefs), tc_max_workloads(tc_max_workloads), sbj_workloads(sbj_workloads), first_labels(first_labels), pop_size(pop_size), periods_size(periods_size), periods_per_day(periods_per_day) {
 
         // Initilaizing the attributes
         generator = std::default_random_engine(rd());
         random_period = std::uniform_int_distribution<int>(0, periods_size - 1);
-        population = std::vector<std::vector<std::list<int>>>(
-            pop_size, std::vector<std::vector<int>>(periods_size, std::list<int>());
+        population = std::vector<Chromossome>(
+            pop_size,
+            Chromossome(periods_size, tc_max_workloads.size(), sbj_workloads.size())
         );
         fitnesses.resize(pop_size);
-        tc_cur_workloads.resize(tc_max_workloads.size(), 0);
-        allocated_disciplines(sbj_workloads.size(), false);
-        teacher_subject.resize(tc_max_workloads.size());
 
-        // Randomly setting disciplines to the teachers
+        // Randomly setting disciplines to the teachers for each solution
         random_teacher = std::uniform_int_distribution<int>(0, tc_max_workloads.size() - 1);
-        for (int i = 0; i < (int)sbj_workloads.size(); ++i) {
-            int chosen_teacher = random_teacher(generator);
-            tc_cur_workloads[chosen_teacher] += sbj_workloads[i];
-            allocated_subjects[i] = true;
-            teacher_subject[chosen_teacher].push_back(i);
-            setTuples(chosen_teacher, i);
+        for (int ch = 0; ch < pop_size; ++ch) {
+            for (int j = 0; j < (int)sbj_workloads.size(); ++i) {
+                int chosen_teacher = random_teacher(generator);
+                population[ch].tc_cur_workloads[chosen_teacher] += sbj_workloads[j];
+                population[ch].teacher_subject[chosen_teacher][j] = true;
+            }
         }
 
         // Creating the first generation
-        for (int i = 0; i < pop_size; ++i) {
-            for (int j = 0; i < (int)tuples.size(); ++j) {
-                int chosen_period;
-                chosen_period = random_period(generator);
-                population[i][chosen_period].push_back(j);
+        random_subject = std::uniform_int_distribution<int>(0, sbj_workloads.size() - 1);
+        for (int ch = 0; ch < pop_size; ++ch) {
+            for (int tc_idx = 0; tc_idx < tc_max_workloads.size(); ++tc_idx) {
+                int chosen_period = random_period(generator);
+                auto chosen_subject = population[ch].teacher_subject.begin();
+                std::advance(chosen_subject, random_subject(generator));
+
+                population[ch].periods[chosen_period].push_back(Tuple(-1, tc_idx, *chosen_subject, sbj_grades[chosen_subject]));
             }
+            fix(population[ch]);
         }
 
         // Calculates the fitness of each chromossome
@@ -86,11 +125,11 @@ public:
         for (int i = 0; i < periods_size / periods_per_day; ++i) {
             std::map<int, int> m;
             for (int j = i * periods_per_day; j < (i + 1) * periods_per_day; ++j) {
-                for (auto &label : population[ch][j]) {
-                    if (m.find(tuples[label].subject) == m.end())
-                        m.insert({ tuples[label].subject, 1 });
+                for (auto &tuple : population[ch].periods[j]) {
+                    if (m.find(tuple.subject) == m.end())
+                        m.insert({ tuple.subject, 1 });
                     else
-                        ++m[tuples[label].subject];
+                        ++m[tuple.subject];
                 }
             }
             for (auto &e : m) if (e.second > 1) cost += (10 * (e.second - 1));
@@ -102,9 +141,9 @@ public:
                 std::set<int> today, yesterday, tomorrow;
 
                 if (j > i * periods_per_day && j < (i + 1) * periods_per_day) {
-                    for (auto &label : population[ch][j]) today.insert(tuples[label].teacher);
-                    for (auto &label : population[ch][j - 1]) yesteday.insert(tuples[label].teacher);
-                    for (auto &label : population[ch][j + 1]) tomorrow.insert(tuples[label].teacher);
+                    for (auto &tuple : population[ch].periods[j]) today.insert(tuple.teacher);
+                    for (auto &tuple : population[ch].periods[j - 1]) yesteday.insert(tuple.teacher);
+                    for (auto &tuple : population[ch].periods[j + 1]) tomorrow.insert(tuple.teacher);
 
                     for (auto &teacher : yesteday) {
                         if (tomorrow.find(teacher) != tomorrow.end() && today.find(teacher) == today.end())
@@ -116,21 +155,29 @@ public:
 
         // Checking for teachers lecturing in out periods
         for (int i = 0; i < periods_size; ++i) {
-            for (auto &label : population[ch][i]) {
-                if (out_priods[tuples[label].teacher][i]) cost += 10;
+            for (auto &tuple : population[ch].periods[i]) {
+                if (out_priods[tuple.teacher][i]) cost += 10;
             }
         }
 
         // Checking for teacher's subjects preferences
-        for (int i = 0; i < (int)teacher_subject.size(); ++i) {
-            for (auto &subject : teacher_subject[i]) {
-                switch(prefs[i][subject]) {
-                    case 4 : cost += 2; break;
-                    case 3 : cost += 4; break;
-                    case 2 : cost += 6; break;
-                    case 1 : cost += 10; break;
+        for (int i = 0; i < (int)tc_max_workloads.size(); ++i) {
+            for (int j = 0; j < (int)sbj_workloads.size(); ++j) {
+                if (population[ch].teacher_subject[i][j]) {
+                    switch(prefs[i][j]) {
+                        case 4 : cost += 2; break;
+                        case 3 : cost += 4; break;
+                        case 2 : cost += 6; break;
+                        case 1 : cost += 10; break;
+                    }
                 }
             }
+        }
+
+        // Checks for teachers abor maximum workload
+        for (int i = 0; i < (int)tc_max_workloads.size(); ++i) {
+            if (population[ch].tc_cur_workloads[i] > tc_max_workloads[i])
+                cost += population[ch].tc_cur_workloads[i] - tc_max_workloads[i];
         }
 
         return 500 - (cost > 500 ? 500 : cost);
@@ -160,86 +207,107 @@ public:
     }
 
     /* Checks for hard constraints violated and fix them */
-    void fix(std::vector<list<int>> &child) {
-        std::vector<bool> found(tuples.size(), false);
+    void fix(Chromossome &child) {
+        std::vector<int> count(sbj_workloads.size());
 
         // Checks for missing tuples and place them randomly
-        for (auto &period : child)
-            for (auto &tuple : period) found[tuple] = true;
+        for (auto &period : child.periods)
+            for (auto &tuple : period) ++count[tuple.subject];
         for (int i = 0; i < int(found.size()); ++i) {
-            if (!found[i]) {
+            while (count[i] < sbj_workloads[i]) {
                 int chosen = random_period(generator);
-                child[chosen].push_back(tuples[i].label);
+                int teacher;
+                for (teacher = 0; teacher < (int)tc_workloads.size(); ++teacher)
+                    if (child.teacher_subject[teacher][i]) break;
+                child.population[chosen].push_back(Tuple(-1, teacher, i, sbj_grades[i]));
+                ++count[i];
             }
         }
 
-        // Checks for repeated tuples and remove them
-        found.assign(found.size(), false);
-        for (auto &period : child) {
-            for (auto it = period.begin(); it != period.end(); ++it) {
-                if (!found[*it]) found[*it] = true;
-                else period.erase(it);
+        // Checks for extra tuples and remove them
+        for (int i = 0; i < (int)count.size(); ++i) {
+            while (count[i] > sbj_workloads[i]) {
+                for (auto &period : child.periods) {
+                    auto tuple = std::find_if(period.begin(), period.end(),
+                        [i](Tuple &tuple) { return tuple.subject == i }
+                    );
+                    period.erase(tuple); --count[i];
+                }
             }
         }
 
         // Checks for same teacher and same grade in the same period and moves elsewhere
-        for (auto &period : child) {
+        for (auto &period : child.periods) {
             std::set<int> teachers, grades;
-            for (auto &tuple : period) {
-                int cur_teacher = tuples[tuple].teacher;
-                int cur_grade = tuples[tuple].grade;
+            for (auto tuple = period.begin(); tuple != period.end(); ++tuple) {
+                int cur_teacher = tuple->teacher, cur_grade = tuple->grade;
                 if (teachers.find(cur_teacher) != teachers.end() || grades.find(cur_grade) != grades.end()) {
                     do new_period = random_period(generator);
                     while (std::none_of(
-                        child[new_period].begin(),
-                        child[new_period].end(),
-                        [this, cur_teacher](int t) {
-                            return tuples[t].teacher == cur_teacher || tuples[t].grade == cur_grade;
+                        child.periods[new_period].begin(), child.periods[new_period].end(),
+                        [cur_teacher](Tuple &t) {
+                            return t.teacher == cur_teacher || t.grade == cur_grade;
                         }
                     )); // Might become an infinite loop it the teacher's workload is too high and he has classes in every period
+                    child.periods[new_period].push_back(std::move(*tuple));
+                    period.erase(tuple++); --tuple;
                 } else teachers.insert(cur_teacher), grades.insert(cur_grade);
             }
         }
-    }
-
-    /* Creates two children from a pair of parents using uniform technique */
-    void crossover(int parent1, int parent2, std::vector<list<int>> &child1, std::vector<list<int>> &child2) {
-        std::uniform_int_distribution<int> coin(1, 100);
-
-        for (int i = 0; i < periods_size; ++i) {
-            if (coin(generator) <= 50) {
-                child1[i] = population[parent1][i];
-                child2[i] = population[parent2][i];
-            } else {
-                child1[i] = population[parent2][i];
-                child2[i] = population[parent1][i];
-            }
-        }
-
-        fix(child1); fix(child2);
     }
 
     /*
         An mutation operator that randomly selects two tuples from two periods
         and switch them
     */
-    void swap_tuples(std::vector<list<int>> &child) {
+    void swap_tuples(Chromossome &child) {
         std::uniform_int_distribution<int> m(1, 100);
         if (m(generator) <= 5) {
             int p1, p2;
             do p1 = random_period(generator); while (child[t1] == -1);
             do p2 = random_period(generator); while (child[t2] == -1);
-
-            std::swap(child[t1], child[t2]);
+            std::swap(child.periods[t1], child.periods[t2]);
         }
     }
 
     /*
-        An mutation operator that swap the disciplines allocated for teachers
+        An mutation operator that randomply swap the subjects allocated for
+        teachers
     */
-    void swap_teachers_disciplines() {
+    void swap_teachers_subjects(Chromossome &child) {
         std::uniform_int_distribution<int> m(1, 100);
-        if (m(generator == 5)) {
+        if (m(generator) <= 5) {
+            int sbj1, sbj2;
+            sbj1 = random_subject(generator);
+            do sbj2 = random_subject(generator); while (sbj2 == sbj1);
+            swap_teachers(child, sbj1, sbj2);
+        }
+    }
+
+    /* Creates a new generation */
+    void breed() {
+        std::vector<Chromossome> new_population(
+            pop_size,
+            Chromossome(periods_size, tc_max_workloads.size(), sbj_workloads.size())
+        );
+        int survivors_qtd = pop_size - int(pop_size * 0.95);
+
+        // Select survivors using elitism
+        std::multimap<int, int> best;
+        for (int i = 0; i < pop_size; ++i) best.insert(fitness[i], i);
+
+        int i = 0;
+        for (auto it = best.rbegin(); it != best.rend() && i < survivors_qtd; ++it, ++i)
+            new_population[i] = population[it->second];
+
+        // Probabilistically chooses the parents
+        int parent1, parent2;
+        select(parent1, parent2);
+
+        // Generate the rest of the new population through mutations
+        Chromossome child1(periods_size, tc_max_workloads.size(), sbj_workloads.size());
+        Chromossome child2(periods_size, tc_max_workloads.size(), sbj_workloads.size());
+        for (int i = survivors_qtd; i < pop_size; ++i) {
             
         }
     }

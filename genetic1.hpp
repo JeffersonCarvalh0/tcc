@@ -191,7 +191,7 @@ public:
             if (i + 1 < pop_size) new_population[i += 1] = child2;
         }
 
-        population = new_population;
+        population = std::move(new_population);
 
         // Calculates the fitnesses of the new generation
         for (int i = 0; i < pop_size; ++i) fitnesses[i] = fitness(i);
