@@ -3,6 +3,7 @@
 
 # include <map>
 # include <vector>
+# include <set>
 
 /* Tuples will be assigned to periods */
 struct Tuple {

@@ -1,6 +1,6 @@
 # include "knapsack.hpp"
 # include "genetic1.hpp"
-
+# include "genetic2.hpp"
 # include "utils.hpp"
 
 # include <iostream>
