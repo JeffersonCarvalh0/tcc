@@ -1,18 +1,11 @@
 # include "knapsack.hpp"
 # include "genetic1.hpp"
-# include "genetic2.hpp"
 # include "utils.hpp"
 
 # include <iostream>
-# include <iomanip>
 # include <map>
 
 using namespace std;
-
-// ostream& operator << (ostream &stream, Tuple &tuple) {
-//     stream << setw(2) << tuple.label << setw(5) << tuple.teacher << setw(8) << tuple.subject << setw(8) << tuple.grade;
-//     return stream;
-// }
 
 void printChromossomes(GA1 &ga1) {
     for (int i = 0; i < 5; ++i) {

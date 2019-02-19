@@ -59,8 +59,8 @@ private:
         ch.tc_cur_workloads[teacher2] -= sbj_workloads[sbj2];
         ch.tc_cur_workloads[teacher2] += sbj_workloads[sbj1];
 
-        setTuples(ch, teacher1, sbj1);
-        setTuples(ch, teacher2, sbj2);
+        setTuples(ch, teacher1, sbj2);
+        setTuples(ch, teacher2, sbj1);
     }
 
 public:
@@ -77,7 +77,7 @@ public:
 
 public:
     // Constructor with random initial population
-    GA2(int_vector &sbj_grades, int_matrix &out_periods, int_matrix &prefs, int_vector &tc_max_workloads, int_vector &sbj_workloads, int_vector first_labels, int pop_size = 50, int periods_size = 30, int periods_per_day = 6):
+    GA2(int_vector &sbj_grades, int_matrix &out_periods, int_matrix &prefs, int_vector &tc_max_workloads, int_vector &sbj_workloads, int pop_size = 50, int periods_size = 30, int periods_per_day = 6):
     sbj_grades(sbj_grades), out_periods(out_periods), prefs(prefs), tc_max_workloads(tc_max_workloads), sbj_workloads(sbj_workloads), pop_size(pop_size), periods_size(periods_size), periods_per_day(periods_per_day) {
 
         // Initilaizing the attributes
@@ -100,19 +100,12 @@ public:
         }
 
         // Creating the first generation
-        random_subject = std::uniform_int_distribution<int>(0, sbj_workloads.size() - 1);
-        for (int ch = 0; ch < pop_size; ++ch) {
-            for (int tc_idx = 0; tc_idx < (int)tc_max_workloads.size(); ++tc_idx) {
-                int chosen_period = random_period(generator);
-                int chosen_subject = random_subject(generator);
-                population[ch].periods[chosen_period].push_back(Tuple(-1, tc_idx, chosen_subject, sbj_grades[chosen_subject]));
-                population[ch].teacher_subject[tc_idx][chosen_subject] = true;
-            }
-            fix(population[ch]);
-        }
+        for (int ch = 0; ch < pop_size; ++ch) fix(population[ch]);
 
         // Calculates the fitness of each chromossome
         for (int i = 0; i < pop_size; ++i) fitnesses[i] = fitness(population[i]);
+
+        random_subject = std::uniform_int_distribution<int>(0, sbj_workloads.size() - 1);
     }
 
     /* Calculates the finess of a chromossome(solution) */
@@ -138,15 +131,17 @@ public:
             for (int j = i * periods_per_day; j < (i + 1) * periods_per_day; ++j) {
                 std::set<int> today, yesterday, tomorrow;
 
-                if (j > i * periods_per_day && j < (i + 1) * periods_per_day) {
-                    for (auto &tuple : ch.periods[j]) today.insert(tuple.teacher);
+                for (auto &tuple : ch.periods[j]) today.insert(tuple.teacher);
+
+                if (j - 1 > 0)
                     for (auto &tuple : ch.periods[j - 1]) yesterday.insert(tuple.teacher);
+
+                if (j + 1 < periods_size)
                     for (auto &tuple : ch.periods[j + 1]) tomorrow.insert(tuple.teacher);
 
-                    for (auto &teacher : yesterday) {
-                        if (tomorrow.find(teacher) != tomorrow.end() && today.find(teacher) == today.end())
-                            cost += 10;
-                    }
+                for (auto &teacher : yesterday) {
+                    if (tomorrow.find(teacher) != tomorrow.end() && today.find(teacher) == today.end())
+                        cost += 10;
                 }
             }
         }
@@ -255,7 +250,6 @@ public:
     */
     Chromossome swap_tuples(Chromossome &parent) {
         Chromossome child = parent;
-        std::uniform_int_distribution<int> m(1, 100);
         int p1, p2;
 
         p1 = random_period(generator);
@@ -271,7 +265,6 @@ public:
     */
     Chromossome swap_teachers_subjects(Chromossome &parent) {
         Chromossome child = parent;
-        std::uniform_int_distribution<int> m(1, 100);
         int sbj1, sbj2;
 
         sbj1 = random_subject(generator);
