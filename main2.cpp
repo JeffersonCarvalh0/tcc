@@ -8,7 +8,7 @@ using namespace std;
 
 void toJson(GA2 &ga2) {
     for (int i = 0; i < 5; ++i) {
-        cout << "Solition " << i + 1 << ":\n";
+        cout << "Solution " << i + 1 << ":\n";
         for (int j = 0; j < ga2.population[i].periods.size(); ++j) {
             for (auto &tuple : ga2.population[i].periods[j]) {
                 nlohmann::json obj;

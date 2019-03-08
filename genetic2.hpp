@@ -4,9 +4,10 @@
 # include "utils.hpp"
 
 # include <algorithm>
+# include <iostream>
+# include <list>
 # include <map>
 # include <memory>
-# include <list>
 # include <random>
 # include <set>
 # include <vector>
@@ -49,18 +50,20 @@ private:
         for (teacher2 = 0; teacher2 < (int)tc_max_workloads.size(); ++teacher2)
             if (ch.teacher_subject[teacher2][sbj2]) break;
 
-        ch.teacher_subject[teacher1][sbj1] = false;
-        ch.teacher_subject[teacher1][sbj2] = true;
-        ch.teacher_subject[teacher2][sbj2] = false;
-        ch.teacher_subject[teacher2][sbj1] = true;
+        if (teacher1 != teacher2) {
+            ch.teacher_subject[teacher1][sbj1] = false;
+            ch.teacher_subject[teacher1][sbj2] = true;
+            ch.teacher_subject[teacher2][sbj2] = false;
+            ch.teacher_subject[teacher2][sbj1] = true;
 
-        ch.tc_cur_workloads[teacher1] -= sbj_workloads[sbj1];
-        ch.tc_cur_workloads[teacher1] += sbj_workloads[sbj2];
-        ch.tc_cur_workloads[teacher2] -= sbj_workloads[sbj2];
-        ch.tc_cur_workloads[teacher2] += sbj_workloads[sbj1];
+            ch.tc_cur_workloads[teacher1] -= sbj_workloads[sbj1];
+            ch.tc_cur_workloads[teacher1] += sbj_workloads[sbj2];
+            ch.tc_cur_workloads[teacher2] -= sbj_workloads[sbj2];
+            ch.tc_cur_workloads[teacher2] += sbj_workloads[sbj1];
 
-        setTuples(ch, teacher1, sbj2);
-        setTuples(ch, teacher2, sbj1);
+            setTuples(ch, teacher1, sbj2);
+            setTuples(ch, teacher2, sbj1);
+        }
     }
 
 public:
@@ -237,7 +240,7 @@ public:
                             return t.teacher == cur_teacher || t.grade == cur_grade;
                         }
                     )); // Might become an infinite loop it the teacher's workload is too high and he has classes in every period
-                    child.periods[new_period].push_back(std::move(*tuple));
+                    child.periods[new_period].push_back(*tuple);
                     period.erase(tuple++); --tuple;
                 } else teachers.insert(cur_teacher), grades.insert(cur_grade);
             }
@@ -277,8 +280,8 @@ public:
     bool mutation(int parent, Chromossome &child) {
         std::uniform_int_distribution<int> coin(1, 100);
 
-        if (coin(generator) <= 50) child = std::move(swap_tuples(population[parent]));
-        else child = std::move(swap_teachers_subjects(population[parent]));
+        if (coin(generator) <= 50) child = swap_tuples(population[parent]);
+        else child = swap_teachers_subjects(population[parent]);
 
         if (fitness(child) > fitnesses[parent]) return true;
         return false;
@@ -306,7 +309,7 @@ public:
         // Generate the rest of the new population through mutations
         Chromossome child(periods_size, tc_max_workloads.size(), sbj_workloads.size());
         for (int i = survivors_qtd; i < pop_size; ++i)
-            if (mutation(parent, child)) new_population[i] = std::move(child);
+            new_population[i] = mutation(parent, child) ? child : population[i];
 
         population = std::move(new_population);
 
@@ -316,7 +319,7 @@ public:
 
     void start() {
         while (!std::all_of(fitnesses.begin(), fitnesses.end(),
-        [](int fitness){ return fitness == 500; })) {
+        [](int fitness){ return fitness >= 400; })) {
             breed();
         }
     }
