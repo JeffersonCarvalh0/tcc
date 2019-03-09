@@ -318,8 +318,15 @@ public:
     }
 
     void start() {
-        while (!std::all_of(fitnesses.begin(), fitnesses.end(),
-        [](int fitness){ return fitness >= 400; })) {
+        int i = 1;
+        while (!std::all_of(fitnesses.begin(), fitnesses.begin() + 5,
+        [](int fitness){ return fitness >= 390; })) {
+            float avg = 0;
+            for (auto &n : fitnesses) avg += n;
+            avg /= pop_size;
+            std::cout << "\rprocessing generation " << i++ << "; " <<
+            fitnesses[0] << ' ' << fitnesses[1] << ' ' << fitnesses[2] << ' ' << fitnesses[3] << ' ' << fitnesses[4]
+            << "; total average: " << avg;
             breed();
         }
     }

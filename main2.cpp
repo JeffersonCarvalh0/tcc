@@ -3,12 +3,17 @@
 
 # include <iostream>
 # include <vector>
+# include <string>
+# include <fstream>
 
 using namespace std;
 
 void toJson(GA2 &ga2) {
+    fstream file;
+    file.open("output.txt", fstream::out);
     for (int i = 0; i < 5; ++i) {
-        cout << "Solution " << i + 1 << ":\n";
+        file << "Solution " << i + 1 << ":\n";
+        vector<string> output;
         for (int j = 0; j < ga2.population[i].periods.size(); ++j) {
             for (auto &tuple : ga2.population[i].periods[j]) {
                 nlohmann::json obj;
@@ -16,16 +21,16 @@ void toJson(GA2 &ga2) {
                 obj["teacher"] = tuple.teacher;
                 obj["subject"] = tuple.subject;
                 obj["grade"] = tuple.grade;
-                cout << obj.dump(4) << '\n';
+                output.push_back(obj.dump(2));
             }
-            cout << '\n';
         }
-        cout << '\n';
+        file << nlohmann::json(output).dump(2) << "\n\n";
     }
+
+    file.close();
 }
 
 int main() {
-    ios_base::sync_with_stdio(0); cin.tie(0); cout.tie(0);
     int sbj_num, tc_num;
     vector<int> sbj_grades, tc_workloads, sbj_workloads;
     vector<vector<int>> out_periods, prefs;
