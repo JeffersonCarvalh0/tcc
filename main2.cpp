@@ -13,7 +13,7 @@ void toJson(GA2 &ga2) {
     file.open("output.txt", fstream::out);
     for (int i = 0; i < 5; ++i) {
         file << "Solution " << i + 1 << ":\n";
-        vector<string> output;
+        vector<nlohmann::json> output;
         for (int j = 0; j < ga2.population[i].periods.size(); ++j) {
             for (auto &tuple : ga2.population[i].periods[j]) {
                 nlohmann::json obj;
@@ -21,10 +21,10 @@ void toJson(GA2 &ga2) {
                 obj["teacher"] = tuple.teacher;
                 obj["subject"] = tuple.subject;
                 obj["grade"] = tuple.grade;
-                output.push_back(obj.dump(2));
+                output.push_back(obj);
             }
         }
-        file << nlohmann::json(output).dump(2) << "\n\n";
+        file << nlohmann::json(output) << "\n\n";
     }
 
     file.close();
