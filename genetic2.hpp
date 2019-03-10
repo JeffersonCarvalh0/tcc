@@ -254,10 +254,47 @@ public:
     Chromossome swap_tuples(Chromossome &parent) {
         Chromossome child = parent;
         int p1, p2;
+        Tuple t1, t2;
 
         p1 = random_period(generator);
         do p2 = random_period(generator); while (p2 == p1);
-        std::swap(child.periods[p1], child.periods[p2]);
+
+        std::uniform_int_distribution<int> random_t1(0, child.periods[p1].size() - 1);
+        std::uniform_int_distribution<int> random_t2(0, child.periods[p2].size() - 1);
+
+        auto it_t1 = child.periods[p1].begin();
+        auto it_t2 = child.periods[p2].begin();
+
+        if (!child.periods[p1].empty() || !child.periods[p2].empty()) {
+            if (!child.periods[p1].empty() && !child.periods[p2].empty()) {
+                std::advance(it_t1, random_t1(generator));
+                t1 = *it_t1;
+
+                std::advance(it_t2, random_t2(generator));
+                t2 = *it_t2;
+
+                child.periods[p1].push_back(t2);
+                child.periods[p2].push_back(t1);
+                child.periods[p1].erase(it_t1);
+                child.periods[p2].erase(it_t2);
+            }
+
+            else if (child.periods[p1].empty()) {
+                std::advance(it_t2, random_t2(generator));
+                t2 = *it_t2;
+
+                child.periods[p1].push_back(t2);
+                child.periods[p2].erase(it_t2);
+            }
+
+            else {
+                std::advance(it_t1, random_t1(generator));
+                t1 = *it_t1;
+
+                child.periods[p2].push_back(t1);
+                child.periods[p1].erase(it_t1);
+            }
+        }
 
         return child;
     }
