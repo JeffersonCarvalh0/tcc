@@ -164,13 +164,13 @@ public:
                         case 4 : cost += 2; break;
                         case 3 : cost += 4; break;
                         case 2 : cost += 6; break;
-                        case 1 : cost += 10; break;
+                        case 1 : cost += 15; break;
                     }
                 }
             }
         }
 
-        // Checks for teachers abor maximum workload
+        // Checks for teachers above maximum workload
         for (int i = 0; i < (int)tc_max_workloads.size(); ++i) {
             if (ch.tc_cur_workloads[i] > tc_max_workloads[i])
                 cost += ch.tc_cur_workloads[i] - tc_max_workloads[i];
@@ -282,6 +282,8 @@ public:
 
         if (coin(generator) <= 50) child = swap_tuples(population[parent]);
         else child = swap_teachers_subjects(population[parent]);
+
+        fix(child);
 
         if (fitness(child) > fitnesses[parent]) return true;
         return false;
