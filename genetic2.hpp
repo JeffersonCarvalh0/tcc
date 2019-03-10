@@ -164,7 +164,7 @@ public:
                         case 4 : cost += 2; break;
                         case 3 : cost += 4; break;
                         case 2 : cost += 6; break;
-                        case 1 : cost += 15; break;
+                        case 1 : cost += 30; break;
                     }
                 }
             }
@@ -176,7 +176,7 @@ public:
                 cost += ch.tc_cur_workloads[i] - tc_max_workloads[i];
         }
 
-        return 500 - (cost > 500 ? 500 : cost);
+        return 500 - (cost >= 500 ? 499 : cost);
     }
 
     /*
