@@ -214,6 +214,26 @@ public:
             }
         }
 
+        // Checks for same teacher and same grade in the same period and moves elsewhere
+        for (auto &period : child.periods) {
+            std::set<int> teachers, grades;
+            for (auto tuple = period.begin(); tuple != period.end(); ++tuple) {
+                int cur_teacher = tuple->teacher, cur_grade = tuple->grade;
+                if (teachers.find(cur_teacher) != teachers.end() || grades.find(cur_grade) != grades.end()) {
+                    int new_period;
+                    do new_period = random_period(generator);
+                    while (std::any_of(
+                        child.periods[new_period].begin(), child.periods[new_period].end(),
+                        [cur_teacher, cur_grade](Tuple &t) {
+                            return t.teacher == cur_teacher || t.grade == cur_grade;
+                        }
+                    )); // Might become an infinite loop it the teacher's workload is too high and he has classes in every period
+                    child.periods[new_period].push_back(*tuple);
+                    period.erase(tuple++); --tuple;
+                } else teachers.insert(cur_teacher), grades.insert(cur_grade);
+            }
+        }
+
         // Checks for extra tuples and remove them
         for (int i = 0; i < (int)count.size(); ++i) {
             while (count[i] > sbj_workloads[i]) {
@@ -223,26 +243,6 @@ public:
                     );
                     period.erase(tuple); --count[i];
                 }
-            }
-        }
-
-        // Checks for same teacher and same grade in the same period and moves elsewhere
-        for (auto &period : child.periods) {
-            std::set<int> teachers, grades;
-            for (auto tuple = period.begin(); tuple != period.end(); ++tuple) {
-                int cur_teacher = tuple->teacher, cur_grade = tuple->grade;
-                if (teachers.find(cur_teacher) != teachers.end() || grades.find(cur_grade) != grades.end()) {
-                    int new_period;
-                    do new_period = random_period(generator);
-                    while (std::none_of(
-                        child.periods[new_period].begin(), child.periods[new_period].end(),
-                        [cur_teacher, cur_grade](Tuple &t) {
-                            return t.teacher == cur_teacher || t.grade == cur_grade;
-                        }
-                    )); // Might become an infinite loop it the teacher's workload is too high and he has classes in every period
-                    child.periods[new_period].push_back(*tuple);
-                    period.erase(tuple++); --tuple;
-                } else teachers.insert(cur_teacher), grades.insert(cur_grade);
             }
         }
     }
