@@ -144,7 +144,7 @@ public:
 
                 for (auto &teacher : previous) {
                     if (next.find(teacher) != next.end() && current.find(teacher) == current.end())
-                        cost += 10;
+                        cost += 30;
                 }
             }
         }
@@ -380,7 +380,7 @@ public:
     void start() {
         int i = 1, no_improvement = 0, last_best = 0;
 
-        while (no_improvement < 1000) {
+        while (no_improvement < 500 || no_improvement < i / 2) {
             float avg = 0;
             for (auto &n : fitnesses) avg += n;
             avg /= pop_size;
