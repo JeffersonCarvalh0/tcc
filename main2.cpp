@@ -12,7 +12,7 @@ void toJson(GA2 &ga2) {
     fstream file;
     file.open("output.txt", fstream::out);
     for (int i = 0; i < 5; ++i) {
-        file << "Solution " << i + 1 << ":\n";
+        file << "Solution " << i + 1 << "(fitness " << ga2.fitnesses[i] << "):\n";
         vector<nlohmann::json> output;
         for (int j = 0; j < ga2.population[i].periods.size(); ++j) {
             for (auto &tuple : ga2.population[i].periods[j]) {

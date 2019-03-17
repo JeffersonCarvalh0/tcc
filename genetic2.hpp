@@ -378,15 +378,20 @@ public:
     }
 
     void start() {
-        int i = 1;
-        while (std::none_of(fitnesses.begin(), fitnesses.begin() + 5,
-        [](int fitness){ return fitness >= 850; })) {
+        int i = 1, no_improvement = 0, last_best = 0;
+
+        while (no_improvement < 1000) {
             float avg = 0;
             for (auto &n : fitnesses) avg += n;
             avg /= pop_size;
+
             std::cout << "\rprocessing generation " << i++ << "; " <<
             fitnesses[0] << ' ' << fitnesses[1] << ' ' << fitnesses[2] << ' ' << fitnesses[3] << ' ' << fitnesses[4]
             << "; total average: " << avg;
+
+            last_best == fitnesses[0] ? ++no_improvement : no_improvement = 0;
+            last_best = fitnesses[0];
+
             breed();
         }
     }
