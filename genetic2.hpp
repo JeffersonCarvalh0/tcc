@@ -67,7 +67,7 @@ private:
     }
 
 public:
-    int pop_size, periods_size, periods_per_day;
+    int pop_size, periods_size, periods_per_day, shift_size;
     std::vector<Chromossome> population;
     int_matrix &out_periods, &prefs;
     int_vector fitnesses, &tc_max_workloads, &sbj_workloads, &sbj_grades;
@@ -80,8 +80,8 @@ public:
 
 public:
     // Constructor with random initial population
-    GA2(int_vector &sbj_grades, int_matrix &out_periods, int_matrix &prefs, int_vector &tc_max_workloads, int_vector &sbj_workloads, int pop_size = 50, int periods_size = 30, int periods_per_day = 6):
-    sbj_grades(sbj_grades), out_periods(out_periods), prefs(prefs), tc_max_workloads(tc_max_workloads), sbj_workloads(sbj_workloads), pop_size(pop_size), periods_size(periods_size), periods_per_day(periods_per_day) {
+    GA2(int_vector &sbj_grades, int_matrix &out_periods, int_matrix &prefs, int_vector &tc_max_workloads, int_vector &sbj_workloads, int pop_size = 50, int periods_size = 30, int periods_per_day = 6, int shift_size = 3):
+    sbj_grades(sbj_grades), out_periods(out_periods), prefs(prefs), tc_max_workloads(tc_max_workloads), sbj_workloads(sbj_workloads), pop_size(pop_size), periods_size(periods_size), periods_per_day(periods_per_day), shift_size(shift_size) {
 
         // Initilaizing the attributes
         generator = std::default_random_engine(rd());
@@ -132,18 +132,18 @@ public:
         // Checking for windows in the timetable
         for (int i = 0; i < periods_size / periods_per_day; ++i) {
             for (int j = i * periods_per_day; j < (i + 1) * periods_per_day; ++j) {
-                std::set<int> today, yesterday, tomorrow;
+                std::set<int> current, previous, next;
 
-                for (auto &tuple : ch.periods[j]) today.insert(tuple.teacher);
+                for (auto &tuple : ch.periods[j]) current.insert(tuple.teacher);
 
                 if (j - 1 > 0)
-                    for (auto &tuple : ch.periods[j - 1]) yesterday.insert(tuple.teacher);
+                    for (auto &tuple : ch.periods[j - 1]) previous.insert(tuple.teacher);
 
                 if (j + 1 < periods_size)
-                    for (auto &tuple : ch.periods[j + 1]) tomorrow.insert(tuple.teacher);
+                    for (auto &tuple : ch.periods[j + 1]) next.insert(tuple.teacher);
 
-                for (auto &teacher : yesterday) {
-                    if (tomorrow.find(teacher) != tomorrow.end() && today.find(teacher) == today.end())
+                for (auto &teacher : previous) {
+                    if (next.find(teacher) != next.end() && current.find(teacher) == current.end())
                         cost += 10;
                 }
             }
@@ -176,7 +176,28 @@ public:
                 cost += ch.tc_cur_workloads[i] - tc_max_workloads[i];
         }
 
-        return 500 - (cost >= 500 ? 499 : cost);
+        // Checks for classes to the same grade in different shifs of the same day
+        for (int i = 0; i < periods_size; i += periods_per_day) {
+            std::map<int, int> grades_shift;
+            for (int j = 0; j < periods_per_day; ++j) {
+                for (auto &tuple : ch.periods[i + j]) {
+                    if (grades_shift.find(tuple.grade) != grades_shift.end()) {
+                        if (grades_shift[tuple.grade] != j / shift_size) cost += 20;
+                    }
+                    else
+                        grades_shift[tuple.grade] = j / shift_size;
+                }
+            }
+        }
+
+        // Checks for a single class at a day
+        for (int i = 0; i < periods_size; i += periods_per_day) {
+            int count = 0;
+            for (int j = 0; j < periods_per_day; ++j) count += ch.periods[i + j].size();
+            if (count == 0) cost += 10;
+        }
+
+        return 1000 - (cost >= 1000 ? 999 : cost);
     }
 
     /*
@@ -358,8 +379,8 @@ public:
 
     void start() {
         int i = 1;
-        while (!std::all_of(fitnesses.begin(), fitnesses.begin() + 5,
-        [](int fitness){ return fitness >= 390; })) {
+        while (std::none_of(fitnesses.begin(), fitnesses.begin() + 5,
+        [](int fitness){ return fitness >= 850; })) {
             float avg = 0;
             for (auto &n : fitnesses) avg += n;
             avg /= pop_size;
