@@ -21,19 +21,6 @@ using int_vector = std::vector<int>;
 */
 class GA2 {
 private:
-    struct Chromossome {
-        std::vector<std::list<Tuple>> periods;
-        std::vector<std::vector<bool>> teacher_subject;
-        std::vector<int> tc_cur_workloads;
-
-        Chromossome(int periods_size, int teachers_size, int subjects_size) {
-            periods.resize(periods_size);
-            teacher_subject.resize(teachers_size, std::vector<bool>(subjects_size, false));
-            tc_cur_workloads.resize(subjects_size);
-        }
-    };
-
-private:
     void setTuples(Chromossome &ch, int teacher, int subject) {
         for (auto &period : ch.periods) {
             for (auto &tuple : period) {
