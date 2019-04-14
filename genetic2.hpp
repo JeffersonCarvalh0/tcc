@@ -98,6 +98,22 @@ public:
         random_subject = std::uniform_int_distribution<int>(0, sbj_workloads.size() - 1);
     }
 
+    /* Constructor with inital population */
+    GA2(int_vector &sbj_grades, int_matrix &out_periods, int_matrix &prefs, int_vector &tc_max_workloads, int_vector &sbj_workloads, std::vector<Chromossome> &population, int periods_per_day = 6, int shift_size = 3):
+    sbj_grades(sbj_grades), out_periods(out_periods), prefs(prefs), tc_max_workloads(tc_max_workloads), sbj_workloads(sbj_workloads), population(population), periods_per_day(periods_per_day), shift_size(shift_size) {
+        // Initilaizing the attributes
+        generator = std::default_random_engine(rd());
+        random_period = std::uniform_int_distribution<int>(0, periods_size - 1);
+
+        // Creating the first generation
+        for (int ch = 0; ch < pop_size; ++ch) fix(population[ch]);
+
+        // Calculates the fitness of each chromossome
+        for (int i = 0; i < pop_size; ++i) fitnesses[i] = fitness(population[i]);
+
+        random_subject = std::uniform_int_distribution<int>(0, sbj_workloads.size() - 1);
+    }
+
     /* Calculates the finess of a chromossome(solution) */
     int fitness(const Chromossome &ch) {
         int cost = 0;

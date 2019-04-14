@@ -44,11 +44,11 @@ std::vector<Tuple> createTuples(int teacher, std::set<int> &chosen_subjects, std
     return tuples;
 }
 
-/* Converts output of GA1 on input of GA2 */
+/* Converts output of all GA1 runs into an input of GA2 */
 std::vector<Chromossome> GA1toGA2(
-        std::vector<std::vector<int>> &input_periods, std::vector<Tuple> &tuples, std::vector<std::vector<int>> &prefs,
-        int sbj_num, int tc_num, int periods_size = 30, int pop_size = 50
-        ) {
+    std::vector<std::vector<Tuple>> &input_periods, std::vector<std::vector<int>> &prefs,
+    int sbj_num, int tc_num, int periods_size = 30, int pop_size = 50
+    ) {
     std::vector<Chromossome> population(pop_size, Chromossome(periods_size, tc_num, sbj_num));
     int sols_per_tc = pop_size / tc_num;
 
@@ -56,8 +56,8 @@ std::vector<Chromossome> GA1toGA2(
     for (int i = 0; i < tc_num; ++i) {
         for (int j = i * sols_per_tc; j < (i + 1) * sols_per_tc; ++j) {
             for (int z = 0; z < periods_size; ++z) {
-                if (tuples[input_periods[i][z]].label != -1)
-                    population[j].periods[z].push_back(tuples[input_periods[i][z]]);
+                if (input_periods[i][z].label != -1)
+                    population[j].periods[z].push_back(input_periods[i][z]);
             }
         }
     }

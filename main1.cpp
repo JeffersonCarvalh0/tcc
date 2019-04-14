@@ -18,8 +18,7 @@ void printChromossomes(GA1 &ga1) {
 int main() {
     ios_base::sync_with_stdio(0); cin.tie(0); cout.tie(0);
     int wl, n, out_periods_num;
-    vector<int> workloads, prefs, grades;
-    vector<bool> out_periods;
+    vector<int> workloads, prefs, grades, out_periods;
     map<int, int> subjects;
     set<int> chosen_subs;
 

@@ -22,13 +22,13 @@ public:
     std::vector<std::vector<int>> population;
     std::vector<Tuple> &tuples;
     std::vector<int> fitnesses, &workloads;
-    std::vector<bool> &out_periods;
+    std::vector<int> &out_periods;
 
     std::random_device rd;
     std::default_random_engine generator;
     std::uniform_int_distribution<int> random_period;
 
-    GA1(std::vector<Tuple> &tuples, std::vector<int> &workloads, std::vector<bool> &out_periods, int pop_size = 50, int periods_size = 30, int periods_per_day = 6, int max_gen = 50):
+    GA1(std::vector<Tuple> &tuples, std::vector<int> &workloads, std::vector<int> &out_periods, int pop_size = 50, int periods_size = 30, int periods_per_day = 6, int max_gen = 50):
     tuples(tuples), workloads(workloads), out_periods(out_periods), pop_size(pop_size), periods_size(periods_size), periods_per_day(periods_per_day), max_gen(max_gen) {
 
         // Initializing the attributes
