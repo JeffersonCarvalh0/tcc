@@ -104,6 +104,8 @@ public:
         // Initilaizing the attributes
         generator = std::default_random_engine(rd());
         random_period = std::uniform_int_distribution<int>(0, periods_size - 1);
+        pop_size = population.size();
+        periods_size = population[0].periods.size();
 
         // Creating the first generation
         for (int ch = 0; ch < pop_size; ++ch) fix(population[ch]);

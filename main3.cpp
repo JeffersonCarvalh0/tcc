@@ -1,14 +1,39 @@
 # include "knapsack.hpp"
 # include "genetic1.hpp"
+# include "genetic2.hpp"
 # include "utils.hpp"
+# include "json.hpp"
 
 # include <iostream>
+# include <fstream>
 # include <algorithm>
 # include <map>
 # include <set>
 # include <vector>
 
 using namespace std;
+
+void toJson(GA2 &ga2) {
+    fstream file;
+    file.open("output.txt", fstream::out);
+    for (int i = 0; i < 5; ++i) {
+        file << "Solution " << i + 1 << "(fitness " << ga2.fitnesses[i] << "):\n";
+        std::vector<nlohmann::json> output;
+        for (int j = 0; j < ga2.population[i].periods.size(); ++j) {
+            for (auto &tuple : ga2.population[i].periods[j]) {
+                nlohmann::json obj;
+                obj["period"] = j;
+                obj["teacher"] = tuple.teacher;
+                obj["subject"] = tuple.subject;
+                obj["grade"] = tuple.grade;
+                output.push_back(obj);
+            }
+        }
+        file << nlohmann::json(output) << "\n\n";
+    }
+
+    file.close();
+}
 
 int main() {
     ios_base::sync_with_stdio(0); cin.tie(0); cout.tie(0);
@@ -60,6 +85,9 @@ int main() {
     }
 
     vector<Chromossome> ga2_input = GA1toGA2(results, prefs, sbj_num, tc_num);
+
+    GA2 ga2(sbj_grades, out_periods, prefs, tc_max_workloads, sbj_workloads, ga2_input);
+    ga2.start();
 
     return 0;
 }
