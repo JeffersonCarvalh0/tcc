@@ -13,6 +13,14 @@
 
 using namespace std;
 
+void printChromossomes(GA1 &ga1) {
+    for (int i = 0; i < 5; ++i) {
+        for (int j = 0; j < ga1.periods_size; ++j)
+            cout << ga1.population[i][j] << ' ';
+        cout << "(fitness " << ga1.fitnesses[i] << ")\n";
+    }
+}
+
 void toJson(GA2 &ga2) {
     fstream file;
     file.open("output.txt", fstream::out);
@@ -36,8 +44,6 @@ void toJson(GA2 &ga2) {
 }
 
 int main() {
-    ios_base::sync_with_stdio(0); cin.tie(0); cout.tie(0);
-
     int sbj_num, tc_num;
     vector<int> sbj_grades, tc_max_workloads, sbj_workloads;
     vector<vector<int>> prefs, out_periods;
@@ -63,6 +69,7 @@ int main() {
 
     // Execute the GA1 for every teacher
     for (int i = 0; i < tc_num; ++i) {
+        cout << "Executing GA1 for each teacher (" << i + 1 << '/' << tc_num << ")\n";
         set<int> chosen_subs = knapsack(sbj_num, tc_max_workloads[i], sbj_workloads, prefs[i]);
         vector<Tuple> tuples = createTuples(i, chosen_subs, subjects, sbj_workloads);
 
@@ -76,16 +83,23 @@ int main() {
             result.begin(),
             [&tuples](vector<int> &solution){
                 vector<Tuple> converted;
-                for (auto &label : solution) converted.push_back(tuples[label]);
+                for (auto &label : solution) label != -1
+                    ? converted.push_back(tuples[label])
+                    : converted.push_back(Tuple());
+
                 return converted;
             }
         );
 
+        printChromossomes(ga1);
         results.insert(results.end(), result.begin(), result.end());
+        cout << '\n';
     }
 
+    cout << "Done.\n";
     vector<Chromossome> ga2_input = GA1toGA2(results, prefs, sbj_num, tc_num);
 
+    cout << "Executing GA2...\n";
     GA2 ga2(sbj_grades, out_periods, prefs, tc_max_workloads, sbj_workloads, ga2_input);
     ga2.start();
 

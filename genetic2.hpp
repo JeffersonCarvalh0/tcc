@@ -103,9 +103,10 @@ public:
     sbj_grades(sbj_grades), out_periods(out_periods), prefs(prefs), tc_max_workloads(tc_max_workloads), sbj_workloads(sbj_workloads), population(population), periods_per_day(periods_per_day), shift_size(shift_size) {
         // Initilaizing the attributes
         generator = std::default_random_engine(rd());
+        periods_size = population[0].periods.size();
         random_period = std::uniform_int_distribution<int>(0, periods_size - 1);
         pop_size = population.size();
-        periods_size = population[0].periods.size();
+        fitnesses.resize(pop_size);
 
         // Creating the first generation
         for (int ch = 0; ch < pop_size; ++ch) fix(population[ch]);

@@ -159,8 +159,8 @@ public:
         std::uniform_int_distribution<int> m(1, 100);
         if (m(generator) <= 5) {
             int t1, t2;
-            do t1 = random_period(generator); while (child[t1] == -1);
-            do t2 = random_period(generator); while (child[t2] == -1);
+            t1 = random_period(generator);
+            do t2 = random_period(generator); while (t2 != t1);
 
             std::swap(child[t1], child[t2]);
         }
