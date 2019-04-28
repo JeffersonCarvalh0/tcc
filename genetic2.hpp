@@ -29,30 +29,6 @@ private:
         }
     }
 
-    void swap_teachers(Chromossome &ch, int sbj1, int sbj2) {
-        int teacher1, teacher2;
-        for (teacher1 = 0; teacher1 < (int)tc_max_workloads.size(); ++teacher1)
-            if (ch.teacher_subject[teacher1][sbj1]) break;
-
-        for (teacher2 = 0; teacher2 < (int)tc_max_workloads.size(); ++teacher2)
-            if (ch.teacher_subject[teacher2][sbj2]) break;
-
-        if (teacher1 != teacher2) {
-            ch.teacher_subject[teacher1][sbj1] = false;
-            ch.teacher_subject[teacher1][sbj2] = true;
-            ch.teacher_subject[teacher2][sbj2] = false;
-            ch.teacher_subject[teacher2][sbj1] = true;
-
-            ch.tc_cur_workloads[teacher1] -= sbj_workloads[sbj1];
-            ch.tc_cur_workloads[teacher1] += sbj_workloads[sbj2];
-            ch.tc_cur_workloads[teacher2] -= sbj_workloads[sbj2];
-            ch.tc_cur_workloads[teacher2] += sbj_workloads[sbj1];
-
-            setTuples(ch, teacher1, sbj2);
-            setTuples(ch, teacher2, sbj1);
-        }
-    }
-
 public:
     int pop_size, periods_size, periods_per_day, shift_size;
     std::vector<Chromossome> population;
@@ -210,7 +186,7 @@ public:
         Probabilistically selects the parents based on their fitnesses
         Roulette Wheel method
     */
-    void select(int &parent) {
+    void select(int &parent1, int &parent2) {
         int total = 0;
         for (int i = 0; i < pop_size; ++i) total += fitnesses[i];
 
@@ -219,7 +195,13 @@ public:
 
         for (int i = 0; chosen > 0; ++i) {
             chosen -= fitnesses[i];
-            if (chosen <= 0) { parent = i; break; }
+            if (chosen <= 0) { parent1 = i; break; }
+        }
+
+        chosen = v(generator);
+        for (int i = 0; chosen > 0; ++i) {
+            chosen -= fitnesses[i];
+            if (chosen <= 0) { parent2 = i; break; }
         }
     }
 
@@ -238,6 +220,18 @@ public:
                     if (child.teacher_subject[teacher][i]) break;
                 child.periods[chosen].push_back(Tuple(-1, teacher, i, sbj_grades[i]));
                 ++count[i];
+            }
+        }
+
+        // Checks for extra tuples and remove them
+        for (int i = 0; i < (int)count.size(); ++i) {
+            while (count[i] > sbj_workloads[i]) {
+                for (auto &period : child.periods) {
+                    auto tuple = std::find_if(period.begin(), period.end(),
+                        [i](Tuple &tuple) { return tuple.subject == i; }
+                    );
+                    if (tuple != period.end()) period.erase(tuple), --count[i];
+                }
             }
         }
 
@@ -260,26 +254,57 @@ public:
                 } else teachers.insert(cur_teacher), grades.insert(cur_grade);
             }
         }
+    }
 
-        // Checks for extra tuples and remove them
-        for (int i = 0; i < (int)count.size(); ++i) {
-            while (count[i] > sbj_workloads[i]) {
-                for (auto &period : child.periods) {
-                    auto tuple = std::find_if(period.begin(), period.end(),
-                        [i](Tuple &tuple) { return tuple.subject == i; }
-                    );
-                    period.erase(tuple); --count[i];
+    void crossover(int p1, int p2, Chromossome &child) {
+        // Mix periods from parents 
+        child.periods = population[p1].periods;
+
+        for (int i = 0; i < periods_size; ++i)
+            for (auto &tuple : population[p2].periods[i]) child.periods[i].push_back(tuple);
+
+        // Mix teacher_subject from parents, solve conflicts
+        child.teacher_subject = population[p1].teacher_subject;
+        std::vector<int> sbj_teacher(sbj_workloads.size());
+        for (int tc_id = 0; tc_id < tc_max_workloads.size(); ++tc_id) {
+            for (int sbj_id = 0; sbj_id < sbj_workloads.size(); ++sbj_id)  {
+                if (population[p1].teacher_subject[tc_id][sbj_id])
+                    sbj_teacher[sbj_id] = tc_id;
+            }
+        }
+
+        for (int tc_id = 0; tc_id < tc_max_workloads.size(); ++tc_id) {
+            for (int sbj_id = 0; sbj_id < sbj_workloads.size(); ++sbj_id) {
+                if (population[p2].teacher_subject[tc_id][sbj_id] && tc_id != sbj_teacher[sbj_id]) {
+                    std::uniform_int_distribution<int> coin(1, 100);
+                    if (coin(generator) <= 50) {
+                        child.teacher_subject[sbj_teacher[sbj_id]][sbj_id] = 0;
+                        child.teacher_subject[tc_id][sbj_id] = 1;
+                    }
                 }
             }
         }
+
+        // Erase invalid periods
+        for (auto &period : child.periods) {
+            for (auto it = period.begin(); it != period.end(); ++it) {
+                if (!child.teacher_subject[it->teacher][it->subject])
+                    period.erase(it--);
+            }
+        }
+
+        // Update tc_cur_workloads
+        child.tc_cur_workloads = std::vector<int>(sbj_workloads.size());
+        for (auto &period : child.periods)
+            for (auto &tuple : period)
+                ++child.tc_cur_workloads[tuple.teacher];
     }
 
     /*
         An mutation operator that randomly selects two tuples from two periods
         and switch them
     */
-    Chromossome swap_tuples(Chromossome &parent) {
-        Chromossome child = parent;
+    void swap_tuples(Chromossome &child) {
         int p1, p2;
         Tuple t1, t2;
 
@@ -322,35 +347,11 @@ public:
                 child.periods[p1].erase(it_t1);
             }
         }
-
-        return child;
     }
 
-    /*
-        An mutation operator that randomply swap the subjects allocated for
-        teachers
-    */
-    Chromossome swap_teachers_subjects(Chromossome &parent) {
-        Chromossome child = parent;
-        int sbj1, sbj2;
-
-        sbj1 = random_subject(generator);
-        do sbj2 = random_subject(generator); while (sbj2 == sbj1);
-        swap_teachers(child, sbj1, sbj2);
-
-        return child;
-    }
-
-    bool mutation(int parent, Chromossome &child) {
-        std::uniform_int_distribution<int> coin(1, 100);
-
-        if (coin(generator) <= 50) child = swap_tuples(population[parent]);
-        else child = swap_teachers_subjects(population[parent]);
-
-        fix(child);
-
-        if (fitness(child) > fitnesses[parent]) return true;
-        return false;
+    void mutation(Chromossome &child) {
+        std::uniform_int_distribution<int> dist(1, 100);
+        if (dist(generator) <= 2) swap_tuples(child);
     }
 
     /* Creates a new generation */
@@ -369,13 +370,18 @@ public:
         for (auto it = best.rbegin(); it != best.rend() && i < survivors_qtd; ++it, ++i)
             new_population[i] = population[it->second];
 
-        // Probabilistically chooses the parent
-        int parent; select(parent);
+        // Probabilistically chooses the parents
+        int parent1, parent2;
+        select(parent1, parent2);
 
-        // Generate the rest of the new population through mutations
-        Chromossome child(periods_size, tc_max_workloads.size(), sbj_workloads.size());
-        for (int i = survivors_qtd; i < pop_size; ++i)
-            new_population[i] = mutation(parent, child) ? child : population[i];
+        // Generate the rest of the new population through crossover
+        for (int i = survivors_qtd; i < pop_size; ++i) {
+            Chromossome child(periods_size, tc_max_workloads.size(), sbj_workloads.size());
+            crossover(parent1, parent2, child);
+            mutation(child);
+            fix(child);
+            new_population[i] = child;
+        }
 
         population = std::move(new_population);
 
@@ -386,7 +392,7 @@ public:
     void start() {
         int i = 1, no_improvement = 0, last_best = 0;
 
-        while (no_improvement < 500 || no_improvement < i / 2) {
+        while (no_improvement < 1000 || no_improvement < i / 2) {
             float avg = 0;
             for (auto &n : fitnesses) avg += n;
             avg /= pop_size;
