@@ -29,6 +29,30 @@ private:
         }
     }
 
+    void swap_teachers(Chromossome &ch, int sbj1, int sbj2) {
+        int teacher1, teacher2;
+        for (teacher1 = 0; teacher1 < (int)tc_max_workloads.size(); ++teacher1)
+            if (ch.teacher_subject[teacher1][sbj1]) break;
+
+        for (teacher2 = 0; teacher2 < (int)tc_max_workloads.size(); ++teacher2)
+            if (ch.teacher_subject[teacher2][sbj2]) break;
+
+        if (teacher1 != teacher2) {
+            ch.teacher_subject[teacher1][sbj1] = false;
+            ch.teacher_subject[teacher1][sbj2] = true;
+            ch.teacher_subject[teacher2][sbj2] = false;
+            ch.teacher_subject[teacher2][sbj1] = true;
+
+            ch.tc_cur_workloads[teacher1] -= sbj_workloads[sbj1];
+            ch.tc_cur_workloads[teacher1] += sbj_workloads[sbj2];
+            ch.tc_cur_workloads[teacher2] -= sbj_workloads[sbj2];
+            ch.tc_cur_workloads[teacher2] += sbj_workloads[sbj1];
+
+            setTuples(ch, teacher1, sbj2);
+            setTuples(ch, teacher2, sbj1);
+        }
+    }
+
 public:
     int pop_size, periods_size, periods_per_day, shift_size;
     std::vector<Chromossome> population;
@@ -256,12 +280,17 @@ public:
         }
     }
 
+    /* Single point crossover */
     void crossover(int p1, int p2, Chromossome &child) {
-        // Mix periods from parents 
-        child.periods = population[p1].periods;
+        /* // Mix periods from parents */ 
+        /* child.periods = population[p1].periods; */
 
+        /* for (int i = 0; i < periods_size; ++i) */
+        /*     for (auto &tuple : population[p2].periods[i]) child.periods[i].push_back(tuple); */
+
+        int pivot = random_period(generator);
         for (int i = 0; i < periods_size; ++i)
-            for (auto &tuple : population[p2].periods[i]) child.periods[i].push_back(tuple);
+            child.periods[i] = i < pivot ? population[p1].periods[i] : population[p2].periods[i];
 
         // Mix teacher_subject from parents, solve conflicts
         child.teacher_subject = population[p1].teacher_subject;
@@ -304,7 +333,7 @@ public:
         An mutation operator that randomly selects two tuples from two periods
         and switch them
     */
-    void swap_tuples(Chromossome &child) {
+    Chromossome swap_tuples(Chromossome child) {
         int p1, p2;
         Tuple t1, t2;
 
@@ -347,11 +376,26 @@ public:
                 child.periods[p1].erase(it_t1);
             }
         }
+        return child;
     }
 
-    void mutation(Chromossome &child) {
-        std::uniform_int_distribution<int> dist(1, 100);
-        if (dist(generator) <= 2) swap_tuples(child);
+    /*
+        An mutation operator that randomply swap the subjects allocated for
+        teachers
+    */
+    Chromossome swap_teachers_subjects(Chromossome child) {
+        int sbj1, sbj2;
+
+        sbj1 = random_subject(generator);
+        do sbj2 = random_subject(generator); while (sbj2 == sbj1);
+        swap_teachers(child, sbj1, sbj2);
+
+        return child;
+    }
+
+    void mutation(int parent, Chromossome &child) {
+        std::uniform_int_distribution<int> coin(1, 100);
+        child = (coin(generator) <= 50 ? swap_tuples(population[parent]) : swap_teachers_subjects(population[parent]));
     }
 
     /* Creates a new generation */
@@ -360,33 +404,32 @@ public:
             pop_size,
             Chromossome(periods_size, tc_max_workloads.size(), sbj_workloads.size())
         );
-        int survivors_qtd = pop_size - int(pop_size * 0.95);
-
-        // Select survivors using elitism
-        std::multimap<int, int> best;
-        for (int i = 0; i < pop_size; ++i) best.insert({ fitnesses[i], i });
-
-        int i = 0;
-        for (auto it = best.rbegin(); it != best.rend() && i < survivors_qtd; ++it, ++i)
-            new_population[i] = population[it->second];
 
         // Probabilistically chooses the parents
         int parent1, parent2;
         select(parent1, parent2);
 
-        // Generate the rest of the new population through crossover
-        for (int i = survivors_qtd; i < pop_size; ++i) {
+        // Generate the rest of the new population through crossover or mutation
+        for (int i = 0; i < pop_size; ++i) {
             Chromossome child(periods_size, tc_max_workloads.size(), sbj_workloads.size());
-            crossover(parent1, parent2, child);
-            mutation(child);
+            std::uniform_int_distribution<int> coin(1, 100);
+            coin(generator) <= 70 ? crossover(parent1, parent2, child) : mutation(parent1, child);
+            /* crossover(parent1, parent2, child); */
+            /* mutation(parent1, child); */
             fix(child);
-            new_population[i] = child;
+            fitness(child) > fitnesses[i] ? new_population[i] = child : new_population[i] = population[i];
+            /* new_population[i] = child; */
         }
 
-        population = std::move(new_population);
+        // Calculate new poulation fitnesses and order it by it
+        std::multimap<int, int> best;
+        for (int i = 0; i < pop_size; ++i) best.insert({ fitness(new_population[i]), i });
 
-        // Calculates the fitnesses of the new generation
-        for (int i = 0; i < pop_size; ++i) fitnesses[i] = fitness(population[i]);
+        int i = 0;
+        for (auto it = best.rbegin(); i < pop_size; ++i, ++it) {
+            population[i] = std::move(new_population[it->second]);
+            fitnesses[i] = it->first;
+        }
     }
 
     void start() {
